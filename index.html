@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Foxhole Multi-Gun Artillery — Spotter-Centric</title>
+  <style>
+    :root { --bg:#0b1020; --panel:#101931; --muted:#7d8db3; --text:#eff2ff; --accent:#7aa2ff; --warn:#ffcc00; --danger:#ff6b6b; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background: radial-gradient(1800px 1200px at 0% 0%, #121a33, #0b1020); color: var(--text); }
+    header { padding: 18px 16px; text-align:center; }
+    header h1 { margin:0; font-size: clamp(1.2rem, 2.5vw, 1.7rem); }
+    header p { margin:6px 0 0; color: var(--muted); font-size: 1rem; }
+
+    .wrap { max-width: 1700px; margin: 0 auto; padding: 14px; display: grid; grid-template-columns: 560px 1fr; gap: 16px; }
+    @media (max-width: 1300px){ .wrap { grid-template-columns: 1fr; } }
+
+    .card { background: linear-gradient(180deg, #0e1630, #0b1228); border: 1px solid #151f3f; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+    .card h2 { margin:0; padding: 12px 14px; font-size: 1.06rem; border-bottom: 1px solid #151f3f; color: #dbe4ff; display:flex; align-items:center; gap:8px; }
+    .card .content { padding: 12px 14px 14px; }
+
+    .grid2 { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px; }
+    .row { display:flex; gap:10px; align-items: center; }
+    label { font-size: 0.95rem; color: #c6d2ff; }
+    input[type="number"], input[type="text"], select {
+      width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #223063;
+      background: #0b1533; color: #e8edff; outline: none; font-size: 1rem;
+    }
+    input[type="number"]:focus, input[type="text"]:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(122,162,255,0.25); }
+    input[type="range"] { width: 100%; accent-color:#7aa2ff; }
+    .hint { font-size: 0.9rem; color: var(--muted); margin-top: 6px; }
+
+    .btn { appearance:none; border:1px solid #223063; background:#0b1533; color:#e8edff; padding:10px 12px; border-radius: 10px; cursor: pointer; font-size: 1rem; }
+    .btn.primary { border-color: #2a53ff; background: linear-gradient(180deg, #1b2b6b, #14245c); }
+    .btn.ghost { background: transparent; }
+    .btn:hover { filter: brightness(1.07); }
+
+    .chips { display:flex; gap:8px; flex-wrap:wrap; }
+    .chip { padding:7px 12px; border-radius: 24px; border:1px solid #2a3b76; cursor:pointer; background:#0a1330; color:#dfe6ff; font-size:1rem; user-select:none; }
+    .chip.active { border-color:#7aa2ff; background:#15245a; }
+
+    table { width:100%; border-collapse: collapse; }
+    th, td { text-align:left; border-bottom: 1px solid #1b2a59; padding: 10px; font-size: 1rem; vertical-align: middle; }
+    th { color:#cbd8ff; font-weight:600; }
+    td .tag { padding:2px 6px; border-radius: 6px; background:#0f1a36; border:1px solid #25346a; color:#a6b6ff; font-size:0.85rem; }
+
+    /* Results: only Range & Azimuth big */
+    #outTable th { font-size: 1rem; }
+    #outTable td { font-size: 1rem; }
+    #outTable td.big { font-size: 1.85rem; font-weight: 700; }
+    #outTable td:first-child, #outTable th:first-child { text-align: center; }
+    .swatch { display:inline-block; width:14px; height:14px; border-radius:50%; border:1px solid rgba(255,255,255,0.35); }
+
+    .toolbar { display:flex; gap:8px; align-items:center; justify-content: space-between; margin-bottom:8px; flex-wrap: wrap; }
+
+    canvas { width: 100%; height: 900px; background: #081028; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; display:block; cursor: grab; }
+    .legend { display:flex; gap: 14px; align-items:center; padding: 8px 14px 0 14px; font-size: 1rem; color:#cbd8ff; flex-wrap: wrap; }
+    .dot { width: 14px; height:14px; border-radius:50%; display:inline-block; }
+    .dot.spot { background:#ffd43b; }
+    .dot.gun { background:#99e9f2; }
+    .dot.tgt { background:#94d82d; }
+    .dot.wind { background:#a78bfa; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Foxhole Multi-Gun Artillery — Spotter-Centric (Pan & Zoom only)</h1>
+    <p>0° = North. <b>Drag background</b> to pan. <b>Scroll</b> to zoom. Edit everything via the inputs; points on the map are not draggable.</p>
+  </header>
+
+  <main class="wrap">
+    <section class="card" id="inputsCard">
+      <h2>Inputs</h2>
+      <div class="content">
+        <div class="grid2">
+          <div>
+            <label for="dT">Target distance (from <b>Sn</b>, m)</label>
+            <input id="dT" type="number" inputmode="decimal" step="1" min="0" value="250" />
+            <input id="dT_slider" type="range" min="0" max="1200" step="1" value="250" />
+          </div>
+          <div>
+            <label for="thetaT">Target azimuth (from <b>Sn</b>, deg)</label>
+            <input id="thetaT" type="number" inputmode="decimal" step="1" min="0" max="360" value="90" />
+            <input id="thetaT_slider" type="range" min="0" max="360" step="1" value="90" />
+          </div>
+        </div>
+
+        <hr style="border-color:#1b2a59; border-style:solid; border-width:1px; margin:12px 0; opacity:0.5;" />
+
+        <h2>Spotter chain (inverse legs)</h2>
+        <div class="hint">Enter legs as <b>S1→S0</b>, <b>S2→S1</b>, … (i.e., each leg points <em>back</em> toward the previous spotter). Sn is the last spotter; target is measured from Sn.</div>
+        <div class="content" style="padding:8px 0 0 0;">
+          <table id="spotsTable">
+            <thead>
+              <tr>
+                <th style="width:25%">Leg</th>
+                <th>Dist (m)</th>
+                <th>Azimuth (deg)</th>
+                <th style="width:44px"></th>
+              </tr>
+            </thead>
+            <tbody id="spotsBody"></tbody>
+          </table>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn" id="addLeg">Add leg</button>
+            <button class="btn ghost" id="resetS0">Center view on S0</button>
+          </div>
+        </div>
+
+        <hr style="border-color:#1b2a59; border-style:solid; border-width:1px; margin:12px 0; opacity:0.5;" />
+
+        <h2>Wind</h2>
+        <div class="content" style="padding:0;">
+          <div class="grid2">
+            <div>
+              <label for="windAz">Wind azimuth (deg)</label>
+              <input id="windAz" type="number" step="1" min="0" max="360" value="0" />
+              <input id="windAz_slider" type="range" min="0" max="360" step="1" value="0" />
+              <div class="hint">Enter azimuth the wind blows <b>TOWARD</b>. Check box to interpret as FROM.</div>
+              <label class="row" style="margin-top:6px; gap:8px; align-items:center;">
+                <input id="windFlip" type="checkbox" /> Interpret as "wind FROM" (adds 180°)
+              </label>
+            </div>
+            <div>
+              <label>Strength (0–4)</label>
+              <div class="chips" id="windStrength">
+                <div class="chip" data-s="0">0</div>
+                <div class="chip" data-s="1">1</div>
+                <div class="chip active" data-s="2">2</div>
+                <div class="chip" data-s="3">3</div>
+                <div class="chip" data-s="4">4</div>
+              </div>
+              <div class="hint">Calibrated on your <b>120 mm</b> logs; applied to all weapons until we fit them individually.</div>
+            </div>
+          </div>
+        </div>
+
+        <hr style="border-color:#1b2a59; border-style:solid; border-width:1px; margin:12px 0; opacity:0.5;" />
+
+        <h2 class="row">Guns <button class="btn primary" id="addGun">Add gun</button></h2>
+        <div class="hint" style="margin-top:-6px;">Enter each gun from <b>S0</b> (S0→G). No map dragging.</div>
+        <div class="content" style="padding:8px 0 0 0;">
+          <table id="gunsTable">
+            <thead>
+              <tr>
+                <th style="width:22%">Label</th>
+                <th style="width:28%">Type</th>
+                <th>Dist (m)</th>
+                <th>Azimuth (deg)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="gunsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="resultsCard">
+      <h2>Map + Results</h2>
+      <div class="content">
+        <div class="toolbar">
+          <div class="hint">Colored = Gun→Aim (into wind). Circles = accuracy around the target. Yellow dotted = S0→G, S<sub>i</sub>→S<sub>i-1</sub>, Sn→T.</div>
+          <div class="row"><button class="btn" id="copyText">Copy table</button></div>
+        </div>
+        <table id="outTable">
+          <thead>
+            <tr>
+              <th style="width:40px">Key</th>
+              <th>Gun</th>
+              <th>Weapon</th>
+              <th>Range (m)</th>
+              <th>Azimuth (A→Aim)</th>
+              <th>Crosswind drift (m)</th>
+              <th>Accuracy r (m)</th>
+              <th>Aim side</th>
+            </tr>
+          </thead>
+          <tbody id="outBody"></tbody>
+        </table>
+      </div>
+      <div class="legend">
+        <div class="key"><span class="dot spot"></span> Spotters S0,S1,…</div>
+        <div class="key"><span class="dot gun"></span> Guns</div>
+        <div class="key"><span class="dot tgt"></span> Target</div>
+        <div class="key"><span class="dot wind"></span> Wind</div>
+      </div>
+      <canvas id="plot" width="1600" height="900"></canvas>
+    </section>
+  </main>
+
+  <script>
+  "use strict";
+  // --- Safety patch: ensure angle helpers exist globally (prevents ReferenceErrors after edits)
+  if (typeof deg2rad !== 'function') { var deg2rad = function(d){ return d * Math.PI / 180; }; window.deg2rad = deg2rad; }
+  if (typeof rad2deg !== 'function') { var rad2deg = function(r){ return r * 180 / Math.PI; }; window.rad2deg = rad2deg; }
+  if (typeof wrap360 !== 'function') { var wrap360 = function(a){ a = a % 360; if(a < 0) a += 360; return a; }; window.wrap360 = wrap360; }
+  if (typeof toMath  !== 'function') { var toMath  = function(theta){ return deg2rad(90 - theta); }; window.toMath = toMath; }
+  if (typeof fromMath!== 'function') { var fromMath= function(phi){ return wrap360(90 - rad2deg(phi)); }; window.fromMath = fromMath; }
+  // --- end safety patch
+  // Utilities (compass bearings: 0° = North, CW+)
+  var TAU = Math.PI * 2;
+  function deg2rad(d){ return d * Math.PI / 180; }
+  function rad2deg(r){ return r * 180 / Math.PI; }
+  function wrap360(a){ a = a % 360; if(a < 0) a += 360; return a; }
+  function toMath(theta){ return deg2rad(90 - theta); }       // compass -> math
+  
+  // Grid tick step helper (global)
+  function niceStep(v){
+    var x = Math.max(1e-9, v);
+    var pow = Math.pow(10, Math.floor(Math.log10(x)));
+    var n = x / pow;
+    var step = (n < 1.5) ? 1 : (n < 3.5) ? 2 : (n < 7.5) ? 5 : 10;
+    return step * pow;
+  }
+// math -> compass
+
+  // Grid tick step helper (global)
+  if (typeof window.niceStep !== 'function') {
+    function niceStep(v){ var x=Math.max(1e-9,v); var pow=Math.pow(10, Math.floor(Math.log10(x))); var n=x/pow; var step=(n<1.5)?1:(n<3.5)?2:(n<7.5)?5:10; return step*pow; }
+    window.niceStep = niceStep;
+  }
+
+  // Gun types (range/accuracy from wiki; wind coeffs applied from 120mm calibration for now)
+  var GUN_TYPES = {
+    "120": { key:"120", label:"120mm Light Artillery", rangeMin:100, rangeMax:300, inaccMin:25, inaccMax:35 },
+    "150": { key:"150", label:"150mm Huber Exalt", rangeMin:100, rangeMax:300, inaccMin:25, inaccMax:35 },
+    "3c" : { key:"3c",  label:"3C Rocket (O'Brien V.200 Squire)", rangeMin:375, rangeMax:500, inaccMin:39, inaccMax:51 },
+    "sc" : { key:"sc",  label:"Storm Cannon", rangeMin:400, rangeMax:1000, inaccMin:50, inaccMax:50 }
+  };
+
+  // Calibrated per-100m drift coefficients from your 120mm dataset.
+  // Applied to ALL weapons until we collect per-weapon logs.
+  // drift = (range/100) * (A_s * Ŵ + B_s * Ŵ_perpLeft)
+  var CAL_COEFF = { 0:{along:0.0, cross:0.0}, 1:{along:2.5, cross:2.7}, 2:{along:8.2, cross:5.4}, 3:{along:16.5, cross:8.1}, 4:{along:27.2, cross:1.0} };
+  var WIND_COEFF = { '120': CAL_COEFF, '3c': CAL_COEFF, '150': CAL_COEFF, 'sc': CAL_COEFF };
+
+  // DOM
+  var els = {
+    // Target
+    dT: document.getElementById("dT"), dT_slider: document.getElementById("dT_slider"),
+    thetaT: document.getElementById("thetaT"), thetaT_slider: document.getElementById("thetaT_slider"),
+    // Spotter chain
+    spotsBody: document.getElementById("spotsBody"), addLeg: document.getElementById("addLeg"), resetS0: document.getElementById("resetS0"),
+    // Wind
+    windAz: document.getElementById("windAz"), windAz_slider: document.getElementById("windAz_slider"), windFlip: document.getElementById("windFlip"), windStrengthBar: document.getElementById("windStrength"),
+    // Guns
+    addGun: document.getElementById("addGun"), gunsBody: document.getElementById("gunsBody"),
+    // Results + canvas
+    outBody: document.getElementById("outBody"), copyText: document.getElementById("copyText"), canvas: document.getElementById("plot")
+  };
+
+  // Camera/pan/zoom
+  var cam = { x: 0, y: 0 }; // world coords at canvas center
+  var currentView = { cx: 0, cy: 0, baseScale: 1 };
+  var userZoom = 1.0; // 0.25 .. 5
+  var dragPan = null; // {start:{x,y}, camX, camY, scale}
+
+  // Transform (set during draw)
+  var transform = { toScreen: function(p){ return {x:0,y:0}; }, toWorld: function(s){ return {x:0,y:0}; } };
+
+  // Spotter chain state
+  var spotter0 = { x: 0, y: 0 }; // world position of S0 (fixed via inputs only)
+  var state = { spotters: [], lastSpotter: {x:0,y:0}, targetWorld: {x:0,y:0} };
+
+  // ------- Helpers to link a number input to a range slider
+  function linkNumberAndSlider(numEl, rangeEl, min, max, step){
+    if(!numEl || !rangeEl) return;
+    if(min != null){ numEl.min = min; rangeEl.min = min; }
+    if(max != null){ numEl.max = max; rangeEl.max = max; }
+    if(step != null){ numEl.step = step; rangeEl.step = step; }
+    // Sync initial
+    rangeEl.value = numEl.value;
+    numEl.addEventListener('input', function(){ rangeEl.value = numEl.value; render(); });
+    rangeEl.addEventListener('input', function(){ numEl.value = rangeEl.value; render(); });
+  }
+
+  // Spotter chain table (inverse legs)
+  function legLabel(idx){ return 'S' + (idx+1) + ' → S' + (idx); }
+  function spotRowTemplate(idx, pref){
+    pref = pref || { dist: 0, az: 0 };
+    var tr = document.createElement('tr');
+    tr.innerHTML = ''+
+      '<td><span class="tag">' + legLabel(idx) + '</span></td>'+
+      '<td>'+
+        '<input class="legDist" type="number" step="1" min="0" value="' + (pref.dist||0) + '" />'+
+        '<input class="legDist_slider" type="range" min="0" max="1200" step="1" value="' + (pref.dist||0) + '" />'+
+      '</td>'+
+      '<td>'+
+        '<input class="legAz" type="number" step="1" min="0" max="360" value="' + (pref.az||0) + '" />'+
+        '<input class="legAz_slider" type="range" min="0" max="360" step="1" value="' + (pref.az||0) + '" />'+
+      '</td>'+
+      '<td><button class="btn ghost danger" title="Remove">X</button></td>';
+
+    // Link controls
+    var dNum = tr.querySelector('.legDist');
+    var dSl  = tr.querySelector('.legDist_slider');
+    var aNum = tr.querySelector('.legAz');
+    var aSl  = tr.querySelector('.legAz_slider');
+    linkNumberAndSlider(dNum, dSl, 0, 1200, 1);
+    linkNumberAndSlider(aNum, aSl, 0, 360, 1);
+
+    tr.querySelector('button').addEventListener('click', function(){ tr.remove(); render(); });
+    return tr;
+  }
+  function addSpotterLeg(pref){
+    var idx = els.spotsBody.children.length; // row idx corresponds to leg S{idx+1}->S{idx}
+    els.spotsBody.appendChild(spotRowTemplate(idx, pref||{}));
+    render();
+  }
+
+  // Table: guns
+  var idCounter = 1;
+  function gunRowTemplate(pref){
+    pref = pref || {};
+    var id = pref.id || ("G" + (idCounter++));
+    var label = (pref.label != null ? pref.label : id);
+    var dist = (pref.dist != null ? pref.dist : 10);
+    var az = (pref.az != null ? pref.az : 109);
+    var type = pref.type || "120";
+
+    var tr = document.createElement("tr");
+    tr.dataset.id = id;
+    tr.innerHTML = ''+
+      '<td><input type="text" value="' + label + '" /></td>'+
+      '<td>'+
+        '<select>'+
+          '<option value="120"' + (type==='120'?' selected':'') + '>120mm Light Artillery</option>'+
+          '<option value="150"' + (type==='150'?' selected':'') + '>150mm Huber Exalt</option>'+
+		   '<option value="3c"' + (type==='3c'?' selected':'') + '>3C Rocket (Squire)</option>'+
+		   '<option value="sc"' + (type==='sc'?' selected':'') + '>Storm Cannon</option>'+
+        '</select>'+
+        '<div class="hint">r: ' + GUN_TYPES[type].inaccMin + '-' + GUN_TYPES[type].inaccMax + 'm, range: ' + GUN_TYPES[type].rangeMin + '-' + GUN_TYPES[type].rangeMax + 'm</div>'+
+      '</td>'+
+      '<td>'+
+        '<input class="gunDist" type="number" step="1" min="0" value="' + dist + '" />'+
+        '<input class="gunDist_slider" type="range" min="0" max="1200" step="1" value="' + dist + '" />'+
+      '</td>'+
+      '<td>'+
+        '<input class="gunAz" type="number" step="1" min="0" max="360" value="' + az + '" />'+
+        '<input class="gunAz_slider" type="range" min="0" max="360" step="1" value="' + az + '" />'+
+      '</td>'+
+      '<td><button class="btn ghost danger" title="Remove">X</button></td>';
+
+    tr.querySelector("button").addEventListener("click", function(){ tr.remove(); render(); });
+
+    var sel = tr.querySelector("select");
+    sel.addEventListener("input", function(){
+      var info = 'r: ' + GUN_TYPES[sel.value].inaccMin + '-' + GUN_TYPES[sel.value].inaccMax + 'm, range: ' + GUN_TYPES[sel.value].rangeMin + '-' + GUN_TYPES[sel.value].rangeMax + 'm';
+      sel.nextElementSibling.textContent = info; render();
+    });
+
+    linkNumberAndSlider(tr.querySelector('.gunDist'), tr.querySelector('.gunDist_slider'), 0, 1200, 1);
+    linkNumberAndSlider(tr.querySelector('.gunAz'),   tr.querySelector('.gunAz_slider'),   0, 360, 1);
+
+    return tr;
+  }
+  function addGunRow(pref){ els.gunsBody.appendChild(gunRowTemplate(pref || {})); render(); }
+
+  // Seed
+  addGunRow({label:'Gun A', dist:10, az:109, type:'150'});
+  els.addGun.addEventListener('click', function(){ addGunRow({}); });
+  els.addLeg.addEventListener('click', function(){ addSpotterLeg({dist:0, az:0}); });
+  els.resetS0.addEventListener('click', function(){ cam = {x:0,y:0}; userZoom = 1.0; render(); });
+
+  // Wind strength chips
+  function getWindStrength(){ var a = els.windStrengthBar.querySelector('.chip.active'); return a ? parseInt(a.dataset.s,10) : 2; }
+  els.windStrengthBar.addEventListener('click', function(e){ var chip = e.target.closest('.chip'); if(!chip) return; Array.prototype.forEach.call(els.windStrengthBar.querySelectorAll('.chip'), function(c){ c.classList.remove('active'); }); chip.classList.add('active'); render(); });
+
+  // Inputs + sliders
+  function linkPair(num, sl){ if(num && sl){ sl.value = num.value; } }
+  function syncAllPairs(){ linkPair(els.dT, els.dT_slider); linkPair(els.thetaT, els.thetaT_slider); linkPair(els.windAz, els.windAz_slider); }
+  linkNumberAndSlider(els.dT, els.dT_slider, 0, 1200, 1);
+  linkNumberAndSlider(els.thetaT, els.thetaT_slider, 0, 360, 1);
+  linkNumberAndSlider(els.windAz, els.windAz_slider, 0, 360, 1);
+  ;['dT','thetaT','windAz','windFlip'].forEach(function(id){ var el = document.getElementById(id); if(!el) return; el.addEventListener('change', render); });
+
+  // Readers
+  function readSpotterLegs(){
+    return Array.prototype.map.call(els.spotsBody.querySelectorAll('tr'), function(tr){
+      var dNum = tr.querySelector('.legDist');
+      var aNum = tr.querySelector('.legAz');
+      return { dist: parseFloat(dNum ? dNum.value : 0)||0, az: wrap360(parseFloat(aNum ? aNum.value : 0)||0) };
+    });
+  }
+  function readGuns(){
+    return Array.prototype.map.call(els.gunsBody.querySelectorAll('tr'), function(tr){
+      var labelEl = tr.querySelector('td:first-child input');
+      var sel = tr.querySelector('select');
+      var dNum = tr.querySelector('.gunDist');
+      var aNum = tr.querySelector('.gunAz');
+      return {
+        id: tr.dataset.id,
+        label: (labelEl && labelEl.value) ? labelEl.value : tr.dataset.id,
+        type: sel ? sel.value : '120',
+        dist: parseFloat(dNum ? dNum.value : 0) || 0,
+        az: wrap360(parseFloat(aNum ? aNum.value : 0) || 0)
+      };
+    });
+  }
+
+  // Ballistics calc for one gun using WORLD positions
+  function calcForGun(gun, G, T, wind){
+    var gt = GUN_TYPES[gun.type] || GUN_TYPES['120'];
+
+    // Baseline gun->target
+    var Vx = T.x - G.x, Vy = T.y - G.y;
+    var range = Math.hypot(Vx, Vy);
+    var phiAT = Math.atan2(Vy, Vx);
+
+    // WIND MODEL (world-based, along + cross using calibrated coefficients)
+    var phiW = toMath(wind.az);
+    var Wx = Math.cos(phiW), Wy = Math.sin(phiW);         // unit wind (toward)
+    var Wpx = -Wy, Wpy = Wx;                              // left-perp
+    var ctbl = WIND_COEFF[gun.type] || CAL_COEFF;
+    var c = ctbl[wind.strength] || {along:0, cross:0};
+    var m = range / 100;                                  // per-100m scaling
+    var driftVec = { x: m*(c.along*Wx + c.cross*Wpx), y: m*(c.along*Wy + c.cross*Wpy) };
+
+    // Aim upwind so downwind drift lands on T
+    var Cx = T.x - driftVec.x;
+    var Cy = T.y - driftVec.y;
+
+    // Aim solution (Gun -> Aim)
+    var Vax = Cx - G.x, Vay = Cy - G.y;
+    var rangeAim = Math.hypot(Vax, Vay);
+    var phiAim = Math.atan2(Vay, Vax);
+    var azAim = fromMath(phiAim);
+
+    // Clamp to weapon range
+    var minR = gt.rangeMin, maxR = gt.rangeMax;
+    var rangeClamped = Math.max(minR, Math.min(maxR, rangeAim));
+    if(rangeClamped !== rangeAim){
+      var scaleLen = (rangeAim === 0) ? 0 : (rangeClamped / rangeAim);
+      var nx = G.x + Vax * scaleLen;
+      var ny = G.y + Vay * scaleLen;
+      Vax = nx - G.x; Vay = ny - G.y;
+      rangeAim = rangeClamped;
+      phiAim = Math.atan2(Vay, Vax);
+      azAim = fromMath(phiAim);
+    }
+
+    // Accuracy radius interpolation using clamped aim range
+    var tDist = Math.max(minR, Math.min(maxR, rangeAim));
+    var t = (gt.rangeMax > gt.rangeMin) ? Math.min(1, Math.max(0, (tDist - gt.rangeMin) / (gt.rangeMax - gt.rangeMin))) : 1;
+    var rAcc = gt.inaccMin + (gt.inaccMax - gt.inaccMin) * t;
+
+    // Instructional: aim side relative to shot line
+    var ux = Math.cos(phiAT), uy = Math.sin(phiAT);
+    var rightPerp = { x: uy, y: -ux };
+    var sideDot = driftVec.x*rightPerp.x + driftVec.y*rightPerp.y; // >0 drift to right => aim left
+    var aimSide = (sideDot > 0 ? 'Left' : (sideDot < 0 ? 'Right' : 'None'));
+
+    return { G:G, T:T, azAim:azAim, rangeAim:rangeAim, driftMeters:Math.hypot(driftVec.x, driftVec.y), circle:{x:T.x,y:T.y,r:rAcc}, aimPt:{x: G.x + Vax, y: G.y + Vay}, gt:gt, aimSide:aimSide };
+  }
+
+  function format(n, dp){ if(!isFinite(n)) return '--'; return Number(n).toFixed(dp); }
+
+  function render(){
+    // Sync paired sliders to numbers
+    syncAllPairs();
+
+    // Read inputs
+    var legs = readSpotterLegs();
+    var targetRel = { dist: parseFloat(els.dT.value)||0, az: wrap360(parseFloat(els.thetaT.value)||0) };
+    var waz = wrap360(parseFloat(els.windAz.value) || 0); if(els.windFlip && els.windFlip.checked) waz = wrap360(waz + 180);
+    var wind = { az: waz, strength: getWindStrength() };
+    var guns = readGuns();
+
+    // Compute spotters from inverse legs: S0 known at (0,0); S1 = S0 - v1; S2 = S1 - v2; ...
+    var spotters = []; spotters[0] = { x: spotter0.x, y: spotter0.y };
+    for(var i=0;i<legs.length;i++){
+      var prev = spotters[i];
+      var phi = toMath(legs[i].az);
+      var vx = legs[i].dist * Math.cos(phi);
+      var vy = legs[i].dist * Math.sin(phi); // v: from S{i+1} -> S{i}
+      spotters[i+1] = { x: prev.x - vx, y: prev.y - vy }; // so S{i+1} = S{i} - v
+    }
+    var lastSpotter = spotters[spotters.length-1];
+
+    // Target world from last spotter Sn
+    var phiT = toMath(targetRel.az);
+    var T = { x: lastSpotter.x + targetRel.dist * Math.cos(phiT), y: lastSpotter.y + targetRel.dist * Math.sin(phiT) };
+
+    // Guns world from S0
+    var gunsWorld = guns.map(function(g){ var phiG = toMath(g.az); return { x: spotters[0].x + g.dist*Math.cos(phiG), y: spotters[0].y + g.dist*Math.sin(phiG) }; });
+
+    // Per-gun solutions
+    var rows = guns.map(function(g, i){ var r = calcForGun(g, gunsWorld[i], T, wind); return { color: pick(i), idx:i, gun:g, G:r.G, T:T, azAim:r.azAim, rangeAim:r.rangeAim, driftMeters:r.driftMeters, circle:r.circle, aimPt:r.aimPt, gt:r.gt, aimSide:r.aimSide }; });
+
+    // Store state for potential future features
+    state = { spotters: spotters, lastSpotter: lastSpotter, targetWorld: T };
+
+    // Results table
+    els.outBody.innerHTML = '';
+    rows.forEach(function(r){
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td><span class="swatch" style="background:' + r.color + '"></span></td>' +
+                     '<td>' + r.gun.label + '</td>' +
+                     '<td>' + r.gt.label + '</td>' +
+                     '<td class="big">' + format(r.rangeAim,1) + '</td>' +
+                     '<td class="big">' + format(r.azAim,1) + '°</td>' +
+                     '<td>' + format(r.driftMeters,1) + '</td>' +
+                     '<td>' + format(r.circle.r,1) + ' m</td>' +
+                     '<td><span class="tag">' + r.aimSide + '</span></td>';
+      els.outBody.appendChild(tr);
+    });
+
+    drawDiagram(rows, spotters, T, wind);
+  }
+
+  function drawDiagram(rows, spotters, T, wind){
+    var ctx = els.canvas.getContext('2d');
+    var W = els.canvas.width, H = els.canvas.height;
+    ctx.clearRect(0,0,W,H);
+
+    // Fit view to all points (spotters, guns, target) -> base scale; apply user zoom
+    var pad = 40;
+    var xs = [], ys = [];
+    function addPt(p){ xs.push(p.x); ys.push(p.y); }
+    spotters.forEach(addPt);
+    rows.forEach(function(r){ addPt(r.G); addPt(r.aimPt); });
+    addPt(T);
+    var minX = Math.min.apply(null, xs.concat([-100]));
+    var maxX = Math.max.apply(null, xs.concat([100]));
+    var minY = Math.min.apply(null, ys.concat([-100]));
+    var maxY = Math.max.apply(null, ys.concat([100]));
+    var Wspan = Math.max(1, maxX - minX), Hspan = Math.max(1, maxY - minY);
+    var cx = W/2, cy = H/2;
+    var baseScale = 0.85 * Math.min((W - 2*pad)/Wspan, (H - 2*pad)/Hspan);
+    var scale = baseScale * userZoom;
+
+    transform.toScreen = function(p){ return { x: cx + (p.x - cam.x)*scale, y: cy - (p.y - cam.y)*scale }; };
+    transform.toWorld  = function(s){ return { x: (s.x - cx)/scale + cam.x, y: (cy - s.y)/scale + cam.y }; };
+    currentView = { cx: cx, cy: cy, baseScale: baseScale };
+
+    // Grid
+    ctx.save(); ctx.globalAlpha = 0.22; ctx.strokeStyle = '#1b274d';
+    var maxSpan = Math.max(Wspan, Hspan);
+    var step = niceStep(maxSpan/8);
+    for(var gx=Math.floor((minX-100)/step)*step; gx<=maxX+100; gx+=step){
+      var p1 = transform.toScreen({x:gx, y:minY-100});
+      var p2 = transform.toScreen({x:gx, y:maxY+100});
+      line(ctx, p1, p2);
+    }
+    for(var gy=Math.floor((minY-100)/step)*step; gy<=maxY+100; gy+=step){
+      var q1 = transform.toScreen({x:minX-100, y:gy});
+      var q2 = transform.toScreen({x:maxX+100, y:gy});
+      line(ctx, q1, q2);
+    }
+    ctx.restore();
+
+    // S0 and wind
+    var S0s = transform.toScreen(spotters[0]);
+    dot(ctx, S0s, '#ffd43b', 9); label(ctx, {x:S0s.x+12, y:S0s.y-12}, 'S0', 18);
+
+    var phiW = toMath(wind.az); var Wv = { x: Math.cos(phiW), y: Math.sin(phiW) };
+    var windLen = 110; var windEnd = { x: S0s.x + windLen*Wv.x, y: S0s.y - windLen*Wv.y };
+    arrow(ctx, S0s, windEnd, '#a78bfa', 3, true);
+    label(ctx, {x:windEnd.x+10, y:windEnd.y}, 'Wind ' + wrap360(wind.az).toFixed(0) + '°  S' + getWindStrength(), 18);
+
+    // Spotter chain dots + yellow dotted between (inverse legs)
+    for(var i=1;i<spotters.length;i++){
+      var A = transform.toScreen(spotters[i]);
+      var B = transform.toScreen(spotters[i-1]);
+      dashed(ctx, A, B, '#ffd43b', 2.5, [10,8]);
+      distanceLabel(ctx, A, B, format(Math.hypot(spotters[i].x-spotters[i-1].x, spotters[i].y-spotters[i-1].y),1) + ' m', '#ffd43b');
+      dot(ctx, A, '#ffd43b', 8); label(ctx, {x:A.x+12, y:A.y-12}, 'S'+i, 18);
+    }
+
+    // Target from last spotter
+    var Ts = transform.toScreen(T);
+    var Sn = transform.toScreen(spotters[spotters.length-1]);
+    dot(ctx, Ts, '#94d82d', 9); label(ctx, {x:Ts.x+12,y:Ts.y-12}, 'T', 18);
+    dashed(ctx, Sn, Ts, '#ffd43b', 2.5, [10,8]);
+    distanceLabel(ctx, Sn, Ts, format(Math.hypot(T.x - state.lastSpotter.x, T.y - state.lastSpotter.y),1) + ' m', '#ffd43b');
+
+    // Guns + aim
+    rows.forEach(function(r, i){
+      var Gs = transform.toScreen(r.G);
+      var As = transform.toScreen(r.aimPt);
+      var color = r.color;
+
+      // S0→G dotted
+      dashed(ctx, S0s, Gs, '#ffd43b', 2.5, [10,8]);
+      distanceLabel(ctx, S0s, Gs, format(Math.hypot(r.G.x - spotters[0].x, r.G.y - spotters[0].y),1) + ' m', '#ffd43b');
+
+      // Reference G→T (faint)
+      line(ctx, Gs, Ts, 'rgba(255,255,255,0.18)', 1.5);
+
+      // Gun dot
+      dot(ctx, Gs, color, 9);
+
+      // Gun → Aim
+      line(ctx, Gs, As, color, 3);
+      distanceLabel(ctx, Gs, As, format(r.rangeAim,1) + ' m', color);
+      cross(ctx, As, 8, color, 2);
+
+      // Predicted impact area centered at target
+      circle(ctx, Ts, Math.max(2, r.circle.r*(currentView.baseScale*userZoom)), color, 2.2, [10,7], 0.55);
+    });
+  }
+
+  // Color picker
+  function pick(i){ var palette=['#6ea8fe','#66d9e8','#ffd43b','#b197fc','#94d82d','#ffa8a8','#63e6be','#f4a261','#72efdd','#ef476f','#ffd166','#06d6a0']; return palette[i % palette.length]; }
+
+  // Draw helpers
+  function line(ctx, p, q, color, w){ ctx.save(); ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(q.x,q.y); ctx.lineWidth=w||1; ctx.strokeStyle=color||'#1b274d'; ctx.stroke(); ctx.restore(); }
+  function dashed(ctx, p, q, color, w, dash){ ctx.save(); ctx.setLineDash(dash||[8,6]); line(ctx, p, q, color, w||2); ctx.restore(); }
+  function dot(ctx, p, color, r){ ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.arc(p.x,p.y,r||7,0,TAU); ctx.fill(); ctx.restore(); }
+  function label(ctx, p, text, size){ ctx.save(); ctx.fillStyle = '#e8edff'; ctx.font = (size||18) + 'px ui-sans-serif, system-ui'; ctx.fillText(text, p.x, p.y); ctx.restore(); }
+  function arrow(ctx, p, q, color, w, head){ line(ctx, p, q, color, w||2); if(head){ var ang=Math.atan2(p.y-q.y, q.x-p.x); var s=12; ctx.save(); ctx.beginPath(); ctx.moveTo(q.x,q.y); ctx.lineTo(q.x - s*Math.cos(ang-0.4), q.y + s*Math.sin(ang-0.4)); ctx.lineTo(q.x - s*Math.cos(ang+0.4), q.y + s*Math.sin(ang+0.4)); ctx.closePath(); ctx.fillStyle=color; ctx.fill(); ctx.restore(); } }
+  function circle(ctx, center, r, color, w, dash, alpha){ ctx.save(); ctx.beginPath(); ctx.arc(center.x, center.y, Math.max(2,r), 0, TAU); ctx.strokeStyle=color; ctx.globalAlpha = alpha||0.55; ctx.lineWidth=w||2; ctx.setLineDash(dash||[10,7]); ctx.stroke(); ctx.restore(); }
+  function cross(ctx, p, size, color, w){ ctx.save(); ctx.strokeStyle = color || '#fff'; ctx.lineWidth = w || 2; ctx.beginPath(); ctx.moveTo(p.x-size, p.y-size); ctx.lineTo(p.x+size, p.y+size); ctx.moveTo(p.x-size, p.y+size); ctx.lineTo(p.x+size, p.y-size); ctx.stroke(); ctx.restore(); }
+  
+
+  // Distance label on a segment (re-added)
+  function distanceLabel(ctx, p, q, text, color){
+    var mid = { x:(p.x+q.x)/2, y:(p.y+q.y)/2 };
+    var ang = Math.atan2(q.y-p.y, q.x-p.x);
+    var off = { x: 12 * Math.sin(-ang), y: 12 * Math.cos(-ang) };
+    var pos = { x: mid.x + off.x, y: mid.y + off.y };
+    ctx.save();
+    var pad = 4; ctx.font = '18px ui-sans-serif, system-ui';
+    var wtxt = ctx.measureText(text).width + pad*2;
+    var htxt = 22;
+    ctx.fillStyle = 'rgba(13, 19, 48, 0.7)';
+    ctx.strokeStyle = 'rgba(37, 52, 106, 0.9)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.rect(pos.x - wtxt/2, pos.y - htxt + 4, wtxt, htxt); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color || '#e8edff';
+    ctx.fillText(text, pos.x - wtxt/2 + pad, pos.y + 2);
+    ctx.restore();
+  }
+
+  // Pointer utilities + pan/zoom only
+  function canvasMouse(e, canvas){ var rect = canvas.getBoundingClientRect(); var scaleX = canvas.width / rect.width; var scaleY = canvas.height / rect.height; return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY }; }
+
+  els.canvas.addEventListener('mousedown', function(e){
+    var m = canvasMouse(e, els.canvas);
+    dragPan = { start: m, camX: cam.x, camY: cam.y, scale: currentView.baseScale * userZoom };
+    els.canvas.style.cursor = 'grabbing';
+  });
+  window.addEventListener('mouseup', function(){ dragPan = null; els.canvas.style.cursor = 'grab'; });
+  els.canvas.addEventListener('mouseleave', function(){ dragPan = null; els.canvas.style.cursor = 'grab'; });
+  els.canvas.addEventListener('mousemove', function(e){
+    if(!dragPan) return;
+    var m = canvasMouse(e, els.canvas);
+    var dx = m.x - dragPan.start.x;
+    var dy = m.y - dragPan.start.y;
+    cam.x = dragPan.camX - dx/dragPan.scale;
+    cam.y = dragPan.camY + dy/dragPan.scale;
+    render();
+  });
+
+  // Zoom with wheel (focus on mouse)
+  els.canvas.addEventListener('wheel', function(e){
+    e.preventDefault();
+    var m = canvasMouse(e, els.canvas);
+    var worldBefore = transform.toWorld(m);
+    var factor = (e.deltaY < 0) ? 1.1 : 1/1.1;
+    userZoom = Math.max(0.25, Math.min(5, userZoom * factor));
+    render();
+    var worldAfter = transform.toWorld(m);
+    cam.x += (worldBefore.x - worldAfter.x);
+    cam.y += (worldBefore.y - worldAfter.y);
+    render();
+  }, { passive:false });
+
+  // Copy table
+  els.copyText.addEventListener('click', function(){
+    var lines = Array.prototype.map.call(els.outBody.querySelectorAll('tr'), function(tr){
+      var tds = tr.querySelectorAll('td');
+      return tds[1].innerText + ' | ' + tds[2].innerText + ' | range ' + tds[3].innerText + ' | az ' + tds[4].innerText + ' | drift ' + tds[5].innerText + ' | r ' + tds[6].innerText + ' (' + tds[7].innerText + ')';
+    });
+    navigator.clipboard.writeText(lines.join(''));
+  });
+  // Initial render
+  if (typeof window.niceStep !== 'function') { window.niceStep = niceStep; }
+  render();
+  </script>
+</body>
+</html>
