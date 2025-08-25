@@ -15,13 +15,7 @@ export default class MathUtility
 	public static Get360Wrap( tAngle: number ): number
 	{
 		tAngle = tAngle % 360;
-
-		if ( tAngle < 0 )
-		{
-			tAngle += 360;
-		}
-
-		return tAngle;
+		return tAngle < 0 ? tAngle + 360 : tAngle;
 	};
 
 	public static GetCompassToRadians( tDegrees: number ): number
