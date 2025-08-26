@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* Firefox */
+.leftpanel {
+	scrollbar-width: thin;
+	scrollbar-color: #3f3f46 #18181b; /* thumb | track */
+}
+
+/* Chrome/Edge/Safari (WebKit) */
+.leftpanel::-webkit-scrollbar {
+	width: 8px; /* thinner bar */
+	height: 8px;
+}
+
+.leftpanel::-webkit-scrollbar-track {
+	background: #18181b !important; /* zinc-900 */
+}
+
+.leftpanel::-webkit-scrollbar-thumb {
+	background-color: #3f3f46 !important; /* zinc-700 */
+	border-radius: 9999px;
+	border: 2px solid #18181b !important; /* creates the gap */
+}
+
+.leftpanel::-webkit-scrollbar-thumb:hover {
+	background-color: #52525b !important; /* zinc-600 */
+}

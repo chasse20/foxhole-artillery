@@ -11,14 +11,10 @@ const App = observer(
 		useEffect( () => () => tempModel.Dispose(), [ tempModel ] );
 
 		return (
-			<AppContext.Provider value={tempModel}>
-				<div className="grid min-h-screen grid-cols-[360px_1fr]">
-				<LeftPanel />
-				<main className="p-4">
-					<h1 className="text-2xl font-semibold">Artillery Planner</h1>
-					<p className="text-slate-600">Canvas omitted. Use the left panel.</p>
+			<AppContext.Provider value={ tempModel }>
+				<main className="relative h-screen w-screen overflow-hidden bg-neutral-900">
+					<LeftPanel />
 				</main>
-				</div>
 			</AppContext.Provider>
 		);
 	}

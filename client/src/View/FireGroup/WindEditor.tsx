@@ -1,47 +1,72 @@
-import { observer } from "mobx-react-lite";
+﻿import { observer } from "mobx-react-lite";
 import type WindStrength from "../../Model/WindStrength";
 import type FireGroup from "../../Model/FireGroup";
 import MathUtility from "../../Model/Utility/MathUtility";
+import { NumberBind } from "../Hook/NumberBind";
 
 export const WindEditor = observer(
 	function WindEditor( props: { fireGroup: FireGroup; windStrengths: WindStrength[] } )
 	{
 		const { fireGroup, windStrengths } = props;
 
+		const tempAzimuthBind = NumberBind(
+			() => fireGroup.wind.Angle,
+			(n) => (fireGroup.wind.Angle = MathUtility.Get360Wrap(n)),
+			{ sanitize: (n) => MathUtility.Get360Wrap(n) }
+		);
+
 		return (
-			<fieldset className="rounded-md border border-slate-200 p-3">
-				<legend className="px-1 text-sm text-slate-600">Wind</legend>
+			<fieldset className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+				<legend className="px-1 text-sm text-zinc-300">Wind</legend>
 
-				<div className="grid grid-cols-2 gap-2">
-					<label className="grid gap-1">
-						<span className="text-xs text-slate-600">Azimuth</span>
-						<input
-							className="w-full rounded-md border border-slate-300 px-2.5 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-							type="number"
-							value={ fireGroup.wind.angle }
-							onChange={ ( e ) => ( fireGroup.wind.angle = MathUtility.Get360Wrap( parseFloat( e.target.value || "0" ) ) ) }
-							min={ 0 }
-							max={ 360 }
-							step={ 1 }
-						/>
-					</label>
-
+				<div className="grid grid-cols-2 items-end gap-2">
 					<div className="grid gap-1">
-						<span className="text-xs text-slate-600">Strength</span>
-						<div className="flex flex-wrap gap-2">
-							{ windStrengths.map( ( ws, i ) => (
-								<button
-									key={ i }
-									type="button"
-									disabled={ fireGroup.wind.strength === ws }
-									className="rounded-full px-3 py-1 text-sm border"
-									onClick={() => fireGroup.wind.strength = ws }
-								>
-									{ ws.name }
-								</button>
-							))}
+						<span className="text-[11px] uppercase tracking-wide text-zinc-400">Strength</span>
+
+						<div className="flex w-full">
+							{windStrengths.slice(0, 4).map((ws, i, arr) => {
+								const active = fireGroup.wind.Strength === ws;
+								const first = i === 0;
+								const last = i === arr.length - 1;
+
+								return (
+									<button
+										key={i}
+										type="button"
+										onClick={() => (fireGroup.wind.Strength = ws)}
+										disabled={active}
+										aria-pressed={active}
+										className={[
+											"h-[40px] flex-1 text-sm border cursor-pointer select-none",
+											"text-center",
+											first ? "rounded-l-md" : "rounded-none -ml-px",
+											last && "rounded-r-md",
+											active
+												? "z-10 border-indigo-500 bg-indigo-600 text-white shadow-sm"
+												: "border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700",
+										].filter(Boolean).join(" ")}
+									>
+										{ws.name}
+									</button>
+								);
+							})}
 						</div>
 					</div>
+
+					<label className="grid gap-1">
+						<span className="text-[11px] uppercase tracking-wide text-zinc-400">Azimuth</span>
+						<div className="relative">
+							<input
+								className="h-[40px] w-full rounded-md border border-zinc-700 bg-zinc-800 pr-8 pl-3 text-right text-base text-zinc-100 [font-variant-numeric:tabular-nums] shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+								type="number"
+								{ ...tempAzimuthBind }
+								step={1}
+							/>
+							<span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-zinc-400 text-sm">
+								{"\u00B0"}
+							</span>
+						</div>
+					</label>
 				</div>
 			</fieldset>
 		);

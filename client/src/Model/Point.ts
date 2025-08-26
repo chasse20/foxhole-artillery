@@ -1,7 +1,7 @@
 export default class Point
 {
-	public readonly x: number = 0;
-	public readonly y: number = 0;
+	public readonly x: number;
+	public readonly y: number;
 
 	constructor( tX: number, tY: number )
 	{

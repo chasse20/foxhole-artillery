@@ -1,4 +1,4 @@
-import { action, comparer, makeObservable, observable, reaction } from "mobx";
+import { action, comparer, makeObservable, observable, reaction, computed, runInAction } from "mobx";
 import Gun from "./Gun";
 import type GunType from "./GunType";
 import Point from "./Point";
@@ -9,19 +9,24 @@ import type WindStrength from "./WindStrength";
 
 export default class FireGroup
 {
-	public isVisible: boolean = true;
+	protected _isVisible: boolean = true;
+	protected _name: string = "Fire Group";
 	public readonly wind: Wind;
-	public readonly targetFromSpotter: PolarCoordinate = new PolarCoordinate();
+	public readonly targetFromSpotter: PolarCoordinate = new PolarCoordinate( 0, 0 );
 	public readonly spotters: PolarCoordinate[] = []; // 0 is origin, rest behave as chain S1->S0, S2->S1
 	public readonly guns: Gun[] = [];
 	protected _disposeRecalculation?: () => void;
 
 	constructor( tDefaultWindStrength: WindStrength )
 	{
-		makeObservable(
+		makeObservable<FireGroup, "_isVisible" | "_name">(
 			this,
 			{
-				isVisible: observable,
+				_isVisible: observable,
+				IsVisible: computed,
+				_name: observable,
+				Name: computed,
+				ToggleVisible: action,
 				spotters: observable.shallow,
 				guns: observable.shallow,
 				Calculate: action,
@@ -37,14 +42,14 @@ export default class FireGroup
 		this._disposeRecalculation = reaction(
 			() =>
 			[
-				this.wind.strength,
-				this.wind.angle,
-				this.targetFromSpotter.distance,
-				this.targetFromSpotter.angle,
+				this.wind.Strength,
+				this.wind.Angle,
+				this.targetFromSpotter.Distance,
+				this.targetFromSpotter.Angle,
 				this.spotters.length,
-				...this.spotters.flatMap( x => [ x.distance, x.angle ] ),
+				...this.spotters.flatMap( x => [ x.Distance, x.Angle ] ),
 				this.guns.length,
-				...this.guns.flatMap( x => [ x.location.distance, x.location.angle, x.type ] )
+				...this.guns.flatMap( x => [ x.location.Distance, x.location.Angle, x.Type ] )
 			],
 			() =>
 			{
@@ -56,27 +61,47 @@ export default class FireGroup
 		);
 	}
 
-	AddGun( tType: GunType )
+	public get IsVisible()
+	{
+		return this._isVisible;
+	}
+
+	public ToggleVisible()
+	{
+		this._isVisible = !this._isVisible;
+	}
+
+	public get Name()
+	{
+		return this._name;
+	}
+
+	public set Name( tValue: string )
+	{
+		 runInAction( () => { this._name = tValue; } )
+	}
+
+	public AddGun( tType: GunType )
 	{
 		this.guns.push( new Gun( tType ) );
 	}
 
-	RemoveGun( tIndex: number )
+	public RemoveGun( tIndex: number )
 	{
 		this.guns.splice( tIndex, 1 );
 	}
 
-	AddSpotter()
+	public AddSpotter()
 	{
-		this.spotters.push( new PolarCoordinate() );
+		this.spotters.push( new PolarCoordinate( 0, 0 ) );
 	}
 
-	RemoveSpotter( tIndex: number )
+	public RemoveSpotter( tIndex: number )
 	{
 		this.spotters.splice( tIndex, 1 );
 	}
 
-	Dispose()
+	public Dispose()
 	{
 		this._disposeRecalculation?.();
 	}
@@ -91,9 +116,9 @@ export default class FireGroup
 		for ( let i = 0; i < tempSpottersLength; ++i )
 		{
 			const tempLeg = this.spotters[ i ];
-			const tempPhi = MathUtility.GetCompassToRadians( tempLeg.angle );
-			const tempVx = tempLeg.distance * Math.cos( tempPhi );
-			const tempVy = tempLeg.distance * Math.sin( tempPhi ); // vector from S{i+1} -> S{i}
+			const tempPhi = MathUtility.GetCompassToRadians( tempLeg.Angle );
+			const tempVx = tempLeg.Distance * Math.cos( tempPhi );
+			const tempVy = tempLeg.Distance * Math.sin( tempPhi ); // vector from S{i+1} -> S{i}
 
 			tempSpotters.push( new Point( tempSpotters[ i ].x - tempVx, tempSpotters[ i ].y - tempVy ) );
 		}
@@ -101,11 +126,11 @@ export default class FireGroup
 		const tempLastSpotter = tempSpotters[ tempSpotters.length - 1 ];
 
 		// Target world position from last Spotter
-		const tempPhiTarget = MathUtility.GetCompassToRadians( this.targetFromSpotter.angle );
-		const tempTarget = new Point( tempLastSpotter.x + this.targetFromSpotter.distance * Math.cos( tempPhiTarget ), tempLastSpotter.y + this.targetFromSpotter.distance * Math.sin( tempPhiTarget ) );
+		const tempPhiTarget = MathUtility.GetCompassToRadians( this.targetFromSpotter.Angle );
+		const tempTarget = new Point( tempLastSpotter.x + this.targetFromSpotter.Distance * Math.cos( tempPhiTarget ), tempLastSpotter.y + this.targetFromSpotter.Distance * Math.sin( tempPhiTarget ) );
 
 		// Precompute Wind unit vectors
-		const tempPhiWind = MathUtility.GetCompassToRadians( this.wind.angle );
+		const tempPhiWind = MathUtility.GetCompassToRadians( this.wind.Angle );
 		const tempWindX = Math.cos( tempPhiWind );
 		const tempWindY = Math.sin( tempPhiWind ); // unit wind (toward)
 		const tempWindPX = -tempWindY;
@@ -119,13 +144,13 @@ export default class FireGroup
 			const tempGun = this.guns[ i ];
 
 			// Gun world from S0 (S0->G polar)
-			const tempPhiGun = MathUtility.GetCompassToRadians( tempGun.location.angle );
-			const tempGunPoint = new Point( tempSpotters[ 0 ].x + tempGun.location.distance * Math.cos( tempPhiGun ), tempSpotters[ 0 ].y + tempGun.location.distance * Math.sin( tempPhiGun ) );
+			const tempPhiGun = MathUtility.GetCompassToRadians( tempGun.location.Angle );
+			const tempGunPoint = new Point( tempSpotters[ 0 ].x + tempGun.location.Distance * Math.cos( tempPhiGun ), tempSpotters[ 0 ].y + tempGun.location.Distance * Math.sin( tempPhiGun ) );
 			const tempRange = Math.hypot( tempTarget.x - tempGunPoint.x, tempTarget.y - tempGunPoint.y );
 
 			// Wind drift model (per-100m scaling)
-			const tempAlong = this.wind.strength.along;
-			const tempCross = this.wind.strength.cross;
+			const tempAlong = this.wind.Strength.along;
+			const tempCross = this.wind.Strength.cross;
 			const tempScaledRange = tempRange / 100; // scale with travel distance
 			const tempDriftX = tempScaledRange * (tempAlong * tempWindX + tempCross * tempWindPX );
 			const tempDriftY = tempScaledRange * (tempAlong * tempWindY + tempCross * tempWindPY );
@@ -141,7 +166,7 @@ export default class FireGroup
 			let tempPhiAim = Math.atan2( tempAimY, tempAimX );
 
 			// Clamp to weapon min/max range along the aim ray
-			const tempClamped = Math.max( tempGun.type.rangeMin, Math.min( tempGun.type.rangeMax, tempRangeAim ) );
+			const tempClamped = Math.max( tempGun.Type.rangeMin, Math.min( tempGun.Type.rangeMax, tempRangeAim ) );
 
 			if ( tempClamped !== tempRangeAim )
 			{
@@ -153,11 +178,11 @@ export default class FireGroup
 			}
 
 			// Populate Gun target in polar coords
-			tempGun.target.distance = tempRangeAim;
-			tempGun.target.angle = MathUtility.GetRadiansToCompass( tempPhiAim );
+			tempGun.target.Distance = tempRangeAim;
+			tempGun.target.Angle = MathUtility.GetRadiansToCompass( tempPhiAim );
 
-			const tempTheta = tempGun.type.rangeMax > tempGun.type.rangeMin ? Math.min( 1, Math.max( 0, ( tempRangeAim - tempGun.type.rangeMin ) / ( tempGun.type.rangeMax - tempGun.type.rangeMin ) ) ) : 1;
-			tempGun.targetRadius = tempGun.type.inaccuracyMin + ( tempGun.type.inaccuracyMax - tempGun.type.inaccuracyMin ) * tempTheta;
+			const tempTheta = tempGun.Type.rangeMax > tempGun.Type.rangeMin ? Math.min( 1, Math.max( 0, ( tempRangeAim - tempGun.Type.rangeMin ) / ( tempGun.Type.rangeMax - tempGun.Type.rangeMin ) ) ) : 1;
+			tempGun.TargetRadius = tempGun.Type.inaccuracyMin + ( tempGun.Type.inaccuracyMax - tempGun.Type.inaccuracyMin ) * tempTheta;
 		}
 	}
 }

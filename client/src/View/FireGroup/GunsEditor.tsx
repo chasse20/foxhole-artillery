@@ -9,22 +9,21 @@ export const GunsEditor = observer(
 		const { fireGroup, gunTypes } = props;
 
 		return (
-			<fieldset className="rounded-md border border-slate-200 p-3">
-				<legend className="px-1 text-sm text-slate-600">Guns</legend>
-
+			<fieldset className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+				<legend className="px-1 text-sm text-zinc-300">Guns</legend>
 				<div className="grid gap-2">
-					{ fireGroup.guns.map( ( tempGun, tempIndex ) => (
+					{fireGroup.guns.map((tempGun, tempIndex) => (
 						<GunRow
-							key={ tempIndex }
-							gun={ tempGun }
-							gunTypes={ gunTypes }
-							onRemove={ () => fireGroup.RemoveGun( tempIndex ) }
+							key={tempIndex}
+							gun={tempGun}
+							gunTypes={gunTypes}
+							onRemove={() => fireGroup.RemoveGun(tempIndex)}
 						/>
 					))}
 					<div>
 						<button
-							className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
-							onClick={ () => fireGroup.AddGun( gunTypes[ 0 ] ) }
+							className="cursor-pointer rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-500"
+							onClick={() => fireGroup.AddGun(gunTypes[0])}
 						>
 							+ Add gun
 						</button>
