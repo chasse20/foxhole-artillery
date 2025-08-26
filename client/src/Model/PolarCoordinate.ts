@@ -1,11 +1,17 @@
-import { makeObservable, observable, computed, runInAction } from "mobx";
+import { makeObservable, observable, computed, runInAction, action } from "mobx";
+
+export type Snapshot =
+{
+	distance: number;
+	angle: number;
+};
 
 export default class PolarCoordinate
 {
-	protected _distance: number;
-	protected _angle: number;
+	protected _distance: number = 0;
+	protected _angle: number = 0;
 
-	constructor( tDistance: number, tAngle: number )
+	constructor()
 	{
 		makeObservable<PolarCoordinate, "_distance" | "_angle">(
 			this,
@@ -13,12 +19,10 @@ export default class PolarCoordinate
 				_distance: observable,
 				Distance: computed,
 				_angle: observable,
-				Angle: computed
+				Angle: computed,
+				Load: action
 			}
 		);
-
-		this._distance = tDistance;
-		this._angle = tAngle;
 	}
 
 	public get Distance()
@@ -39,5 +43,19 @@ export default class PolarCoordinate
 	public set Angle( tValue: number )
 	{
 		runInAction( () => { this._angle = tValue; } )
+	}
+
+	public get Snapshot(): Snapshot
+	{
+		return {
+			distance: this._distance,
+			angle: this._angle,
+		};
+	}
+
+	public Load( tSnapshot: Snapshot )
+	{
+		this._distance = tSnapshot.distance;
+		this._angle = tSnapshot.angle;
 	}
 }

@@ -6,6 +6,20 @@ import PolarCoordinate from "./PolarCoordinate";
 import MathUtility from "./Utility/MathUtility";
 import Wind from "./Wind";
 import Target from "./Target";
+import type { Snapshot as PolarCoordinateSnapshot } from "./PolarCoordinate";
+import type { Snapshot as TargetSnapshot } from "./Target";
+import type { Snapshot as WindSnapshot } from "./Wind";
+import type { Snapshot as GunSnapshot } from "./Gun";
+
+export type Snapshot =
+{
+	name: string;
+	wind: WindSnapshot;
+	targets: TargetSnapshot[];
+	spotters: PolarCoordinateSnapshot[];
+	guns: GunSnapshot[];
+	activeTarget: string | null;
+};
 
 export default class FireGroup
 {
@@ -18,7 +32,7 @@ export default class FireGroup
 	protected _activeTarget: Target | null = null;
 	protected _disposeRecalculation?: () => void;
 
-	constructor()
+	constructor( tName: string )
 	{
 		makeObservable<FireGroup, "_isVisible" | "_name" | "_activeTarget">(
 			this,
@@ -39,7 +53,8 @@ export default class FireGroup
 				AddGun: action,
 				RemoveGun: action,
 				AddSpotter: action,
-				RemoveSpotter: action
+				RemoveSpotter: action,
+				Load: action
 			}
 		);
 
@@ -64,6 +79,8 @@ export default class FireGroup
 				equals: comparer.shallow
 			}
 		);
+
+		this._name = tName;
 	}
 
 	public get IsVisible()
@@ -88,7 +105,7 @@ export default class FireGroup
 
 	public AddTarget()
 	{
-		this.targets.push( new Target() );
+		this.targets.push( new Target( `Target ${this.targets.length + 1}` ) );
 
 		if ( this._activeTarget == null )
 		{
@@ -119,7 +136,7 @@ export default class FireGroup
 
 	public AddGun( tType: GunType )
 	{
-		this.guns.push( new Gun( tType ) );
+		this.guns.push( new Gun( `Gun ${this.guns.length + 1}`, tType ) );
 	}
 
 	public RemoveGun( tIndex: number )
@@ -129,7 +146,7 @@ export default class FireGroup
 
 	public AddSpotter()
 	{
-		this.spotters.push( new PolarCoordinate( 0, 0 ) );
+		this.spotters.push( new PolarCoordinate() );
 	}
 
 	public RemoveSpotter( tIndex: number )
@@ -216,5 +233,65 @@ export default class FireGroup
 			const tempTheta = tempGun.Type.rangeMax > tempGun.Type.rangeMin ? Math.min( 1, Math.max( 0, ( tempRangeAim - tempGun.Type.rangeMin ) / ( tempGun.Type.rangeMax - tempGun.Type.rangeMin ) ) ) : 1;
 			tempGun.AimRadius = tempGun.Type.inaccuracyMin + ( tempGun.Type.inaccuracyMax - tempGun.Type.inaccuracyMin ) * tempTheta;
 		}
+	}
+
+	public get Snapshot(): Snapshot
+	{
+		return {
+			name: this._name,
+			wind: this.wind.Snapshot,
+			targets: this.targets.flatMap( x => x.Snapshot ),
+			spotters: this.spotters.flatMap( x => x.Snapshot ),
+			guns: this.guns.flatMap( x => x.Snapshot ),
+			activeTarget: this._activeTarget?.Name ?? null
+		};
+	}
+
+	public Load( tSnapshot: Snapshot, tGunTypes: GunType[] )
+	{
+		this.wind.Load( tSnapshot.wind );
+
+		// Targets
+		this.targets.length = 0;
+		const tempTargetsLength = tSnapshot.targets.length;
+
+		for ( let i = 0; i < tempTargetsLength; ++i )
+		{
+			const tempSnapshot = tSnapshot.targets[ i ];
+			const tempTarget = new Target( tempSnapshot.name );
+			tempTarget.Load( tSnapshot.targets[ i ] );
+			this.targets.push( tempTarget );
+
+			if ( tempTarget.Name == tSnapshot.activeTarget )
+			{
+				this._activeTarget = tempTarget;
+			}
+		}
+
+		// Spotters
+		this.spotters.length = 0;
+		const tempSpottersLength = tSnapshot.spotters.length;
+
+		for ( let i = 0; i < tempSpottersLength; ++i )
+		{
+			const tempSpotter = new PolarCoordinate();
+			tempSpotter.Load( tSnapshot.spotters[ i ] );
+			this.spotters.push( tempSpotter );
+		}
+
+		// Guns
+		this.guns.length = 0;
+		const tempGunsLength = tSnapshot.guns.length;
+		const tempGunTypes = new Map<string, GunType>( tGunTypes.map( x => [ x.name, x ] ) );
+
+		for ( let i = 0; i < tempGunsLength; ++i )
+		{
+			const tempSnapshot = tSnapshot.guns[ i ];
+			const tempGun = new Gun( tempSnapshot.name, tempGunTypes.get( tempSnapshot.type ) ?? tGunTypes[ 0 ] );
+			tempGun.Load( tempSnapshot );
+			this.guns.push( tempGun );
+		}
+
+		this.Calculate();
 	}
 }

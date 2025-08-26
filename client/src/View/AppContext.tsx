@@ -1,15 +1,12 @@
 import React from "react";
 import App from "../Model/App";
 
-export const AppContext = React.createContext<App | null>( null );
+declare global { interface Window { __appSingleton?: App } }
+export const appSingleton: App = ( window.__appSingleton ??= new App() );
+
+export const AppContext = React.createContext<App>( appSingleton );
 
 export function useApp(): App
 {
-	const tempContext = React.useContext( AppContext );
-	if ( !tempContext )
-	{
-		throw new Error( "useApp: AppContext missing" );
-	}
-
-	return tempContext;
+	return React.useContext( AppContext );
 }

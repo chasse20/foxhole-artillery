@@ -1,16 +1,24 @@
-import { makeObservable, observable, computed, runInAction } from "mobx";
+import { makeObservable, observable, computed, runInAction, action } from "mobx";
 import PolarCoordinate from "./PolarCoordinate";
+import type { Snapshot as PolarCoordinateSnapshot } from "./PolarCoordinate";
 import type GunType from "./GunType";
+
+export type Snapshot =
+{
+	location: PolarCoordinateSnapshot;
+	name: string;
+	type: string;
+};
 
 export default class Gun
 {
-	public readonly location: PolarCoordinate = new PolarCoordinate( 0, 0 );
-	public readonly aim: PolarCoordinate = new PolarCoordinate( 0, 0 ); // updated by FireGroup->Calculate()
+	public readonly location: PolarCoordinate = new PolarCoordinate();
+	public readonly aim: PolarCoordinate = new PolarCoordinate(); // updated by FireGroup->Calculate()
 	protected _name: string = "Gun"
 	protected _type: GunType;
 	protected _aimRadius: number = 0;
 
-	constructor( tType: GunType )
+	constructor( tName: string, tType: GunType )
 	{
 		makeObservable<Gun, "_name" | "_type" | "_aimRadius">(
 			this,
@@ -22,10 +30,12 @@ export default class Gun
 				_type: observable,
 				Type: computed,
 				_aimRadius: observable,
-				AimRadius: computed
+				AimRadius: computed,
+				Load: action
 			}
 		);
 
+		this._name = tName;
 		this._type = tType;
 	}
 
@@ -57,5 +67,19 @@ export default class Gun
 	public set AimRadius( tValue: number )
 	{
 		runInAction( () => { this._aimRadius = tValue; } )
+	}
+
+	public get Snapshot(): Snapshot
+	{
+		return {
+			location: this.location.Snapshot,
+			name: this._name,
+			type: this._type.name
+		};
+	}
+
+	public Load( tSnapshot: Snapshot )
+	{
+		this.location.Load( tSnapshot.location );
 	}
 }

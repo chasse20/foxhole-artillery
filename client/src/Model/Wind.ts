@@ -1,4 +1,10 @@
-import { makeObservable, observable, computed, runInAction } from "mobx";
+import { makeObservable, observable, computed, runInAction, action } from "mobx";
+
+export type Snapshot =
+{
+	strength: number;
+	angle: number;
+};
 
 export default class Wind
 {
@@ -13,7 +19,8 @@ export default class Wind
 				_strength: observable,
 				Strength: computed,
 				_angle: observable,
-				Angle: computed
+				Angle: computed,
+				Load: action
 			}
 		);
 	}
@@ -36,5 +43,19 @@ export default class Wind
 	public set Angle( tValue: number )
 	{
 		runInAction( () => { this._angle = tValue; } )
+	}
+
+	public get Snapshot(): Snapshot
+	{
+		return {
+			strength: this._strength,
+			angle: this._angle
+		};
+	}
+
+	public Load( tSnapshot: Snapshot )
+	{
+		this._strength = tSnapshot.strength;
+		this._angle = tSnapshot.angle;
 	}
 }
