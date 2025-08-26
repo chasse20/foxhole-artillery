@@ -1,12 +1,10 @@
 import { makeObservable, observable, action } from "mobx";
 import FireGroup from "./FireGroup";
 import GunType from "./GunType";
-import WindStrength from "./WindStrength";
 
 export default class App
 {
 	public readonly gunTypes: GunType[];
-	public readonly windStrengths: WindStrength[];
 	public readonly fireGroups: FireGroup[] = [];
 
 	constructor()
@@ -23,24 +21,16 @@ export default class App
 
 		this.gunTypes =
 		[
-			new GunType( "Cremari Mortar", 45, 80, 5.5, 12 ),
-			new GunType( "120mm Huber Lariat", 100, 300, 25, 35 ),
-			new GunType( "150mm Huber Exalt", 100, 300, 25, 35 ),
-			new GunType( "300mm Storm Cannon", 400, 1000, 50, 50 )
-		];
-
-		this.windStrengths =
-		[
-			new WindStrength( "1", 2.5, 2.7 ),
-			new WindStrength( "2", 8.2, 5.4 ),
-			new WindStrength( "3", 16.5, 8.1 ),
-			new WindStrength( "4", 27.2, 1.0 )
+			new GunType( "Cremari Mortar", 45, 80, 5.5, 12, 5 ),
+			new GunType( "120mm Huber Lariat", 100, 300, 25, 35, 10 ),
+			new GunType( "150mm Huber Exalt", 100, 300, 25, 35, 10 ),
+			new GunType( "300mm Storm Cannon", 400, 1000, 50, 50, 50 )
 		];
 	}
 
 	public AddFireGroup()
 	{
-		this.fireGroups.push( new FireGroup( this.windStrengths[ 0 ] ) );
+		this.fireGroups.push( new FireGroup() );
 	}
 
 	public RemoveFireGroup( tIndex: number )

@@ -9,7 +9,7 @@ export const SpottersEditor = observer(
 
 		return (
 			<fieldset className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-				<legend className="px-1 text-sm text-zinc-300">Spotter legs</legend>
+				<legend className="px-1 text-sm text-zinc-300">Spotter Chain</legend>
 
 				<div className="grid gap-2">
 					{fireGroup.spotters.map((leg, i) => (

@@ -12,7 +12,7 @@ export const LeftPanel = observer(
 				className="
 					leftpanel
 					fixed left-0 top-0 z-40
-					h-screen w-[400px]
+					h-screen w-[450px]
 					overflow-y-auto border-r border-zinc-800
 					bg-zinc-900 p-3 shadow-xl text-zinc-100
 				"

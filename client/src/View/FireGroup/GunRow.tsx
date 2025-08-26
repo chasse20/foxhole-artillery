@@ -3,13 +3,16 @@ import type Gun from "../../Model/Gun";
 import type GunType from "../../Model/GunType";
 import MathUtility from "../../Model/Utility/MathUtility";
 import { NumberBind } from "../Hook/NumberBind";
+import { useState } from "react";
 
 export const GunRow = observer(
 	function GunRow( props: { gun: Gun; gunTypes: GunType[]; onRemove: () => void } )
 	{
 		const { gun, gunTypes, onRemove } = props;
-
 		const tempTypeIndex = Math.max( 0, gunTypes.indexOf( gun.Type ) );
+		const [ copied, setCopied ] = useState( false );
+
+		// Binds
 		const tempDistanceBind = NumberBind(
 			() => gun.location.Distance,
 			(n) => (gun.location.Distance = Math.max(0, n)),
@@ -21,8 +24,25 @@ export const GunRow = observer(
 			{ sanitize: (n) => MathUtility.Get360Wrap(n) }
 		);
 
+		// Copy Aim
+		const tempOnCopyAim = async () =>
+		{
+			const tempName = (gun.Name ?? "").trim() || "Gun";
+			const tempText = `${tempName}: ${Math.round(gun.aim.Distance)}m, ${gun.aim.Angle.toFixed(1)} azimuth`;
+			try
+			{
+				await navigator.clipboard.writeText( tempText );
+				setCopied( true );
+				setTimeout( () => setCopied( false ), 1200 );
+			}
+			catch ( tError )
+			{
+				console.error( "Failed to copy aim text:", tError );
+			}
+		};
+
 		// Clamp indicator for distance color
-		const tempIsClamped = Math.abs( gun.target.Distance - gun.Type.rangeMin ) < 1e-6 || Math.abs( gun.target.Distance - gun.Type.rangeMax ) < 1e-6;
+		const tempIsClamped = Math.abs( gun.aim.Distance - gun.Type.rangeMin ) < 1e-6 || Math.abs( gun.aim.Distance - gun.Type.rangeMax ) < 1e-6;
 
 		return (
 			<div className="grid gap-2 rounded-md border border-zinc-800 bg-zinc-800/70 p-2">
@@ -96,21 +116,28 @@ export const GunRow = observer(
 				</div>
 
 				{/* Row 4: Aim (fieldset with floating legend, centered, big, same line) */}
-				<fieldset className="relative rounded-md border border-emerald-700/50 bg-emerald-950/40 px-3 py-2 shadow-sm">
+				<fieldset
+					className="relative rounded-md border border-emerald-700/50 bg-emerald-950/40 px-3 py-2 shadow-sm cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+					role="button"
+					tabIndex={0}
+					aria-label={`Copy aim for ${gun.Name || "Gun"}`}
+					title="Click to copy aim to clipboard"
+					onClick={tempOnCopyAim}
+				>
 					<legend className="px-1 text-sm text-zinc-300">Aim</legend>
 
+					{copied && (
+						<span className="absolute right-2 top-2 rounded bg-emerald-600/20 px-2 py-0.5 text-xs text-emerald-300">
+							Copied!
+						</span>
+					)}
+
 					<div className="flex items-baseline justify-center gap-6 text-4xl font-semibold [font-variant-numeric:tabular-nums]">
-						<div
-							className={
-								"whitespace-nowrap " +
-								(tempIsClamped ? "text-red-400" : "text-emerald-300")
-							}
-						>
-							{gun.target.Distance.toFixed(1)}
+						<div className={"whitespace-nowrap " + (tempIsClamped ? "text-red-400" : "text-emerald-300")}>
+							{gun.aim.Distance.toFixed(1)}
 							<span
 								className={
-									"ml-1 align-baseline text-lg " +
-									(tempIsClamped ? "text-red-300/80" : "text-emerald-400/80")
+									"ml-1 align-baseline text-lg " + (tempIsClamped ? "text-red-300/80" : "text-emerald-400/80")
 								}
 							>
 								m
@@ -118,10 +145,8 @@ export const GunRow = observer(
 						</div>
 
 						<div className="whitespace-nowrap text-emerald-300">
-							{gun.target.Angle.toFixed(1)}
-							<span className="ml-1 align-baseline text-lg text-emerald-400/80">
-								{"\u00B0"}
-							</span>
+							{gun.aim.Angle.toFixed(1)}
+							<span className="ml-1 align-baseline text-lg text-emerald-400/80">{"\u00B0"}</span>
 						</div>
 					</div>
 				</fieldset>

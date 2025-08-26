@@ -1,13 +1,12 @@
 ﻿import { observer } from "mobx-react-lite";
-import type WindStrength from "../../Model/WindStrength";
 import type FireGroup from "../../Model/FireGroup";
 import MathUtility from "../../Model/Utility/MathUtility";
 import { NumberBind } from "../Hook/NumberBind";
 
 export const WindEditor = observer(
-	function WindEditor( props: { fireGroup: FireGroup; windStrengths: WindStrength[] } )
+	function WindEditor( props: { fireGroup: FireGroup; } )
 	{
-		const { fireGroup, windStrengths } = props;
+		const { fireGroup } = props;
 
 		const tempAzimuthBind = NumberBind(
 			() => fireGroup.wind.Angle,
@@ -24,7 +23,7 @@ export const WindEditor = observer(
 						<span className="text-[11px] uppercase tracking-wide text-zinc-400">Strength</span>
 
 						<div className="flex w-full">
-							{windStrengths.slice(0, 4).map((ws, i, arr) => {
+							{[1, 2, 3, 4, 5].map((ws, i, arr) => {
 								const active = fireGroup.wind.Strength === ws;
 								const first = i === 0;
 								const last = i === arr.length - 1;
@@ -46,7 +45,7 @@ export const WindEditor = observer(
 												: "border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700",
 										].filter(Boolean).join(" ")}
 									>
-										{ws.name}
+										{ws}
 									</button>
 								);
 							})}

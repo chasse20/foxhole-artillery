@@ -5,24 +5,24 @@ import type GunType from "./GunType";
 export default class Gun
 {
 	public readonly location: PolarCoordinate = new PolarCoordinate( 0, 0 );
-	public readonly target: PolarCoordinate = new PolarCoordinate( 0, 0 ); // updated by FireGroup->Calculate()
+	public readonly aim: PolarCoordinate = new PolarCoordinate( 0, 0 ); // updated by FireGroup->Calculate()
 	protected _name: string = "Gun"
 	protected _type: GunType;
-	protected _targetRadius: number = 0;
+	protected _aimRadius: number = 0;
 
 	constructor( tType: GunType )
 	{
-		makeObservable<Gun, "_name" | "_type" | "_targetRadius">(
+		makeObservable<Gun, "_name" | "_type" | "_aimRadius">(
 			this,
 			{
 				location: observable,
-				target: observable,
+				aim: observable,
 				_name: observable,
 				Name: computed,
 				_type: observable,
 				Type: computed,
-				_targetRadius: observable,
-				TargetRadius: computed
+				_aimRadius: observable,
+				AimRadius: computed
 			}
 		);
 
@@ -49,13 +49,13 @@ export default class Gun
 		 runInAction( () => { this._type = tValue; } )
 	}
 
-	public get TargetRadius()
+	public get AimRadius()
 	{
-		return this._targetRadius;
+		return this._aimRadius;
 	}
 
-	public set TargetRadius( tValue: number )
+	public set AimRadius( tValue: number )
 	{
-		runInAction( () => { this._targetRadius = tValue; } )
+		runInAction( () => { this._aimRadius = tValue; } )
 	}
 }

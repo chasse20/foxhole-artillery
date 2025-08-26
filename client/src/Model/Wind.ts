@@ -1,12 +1,11 @@
 import { makeObservable, observable, computed, runInAction } from "mobx";
-import type WindStrength from "./WindStrength";
 
 export default class Wind
 {
-	protected _strength: WindStrength;
+	protected _strength: number = 1;
 	protected _angle: number = 0;
 
-	constructor( tStrength: WindStrength )
+	constructor()
 	{
 		makeObservable<Wind, "_strength" | "_angle">(
 			this,
@@ -17,8 +16,6 @@ export default class Wind
 				Angle: computed
 			}
 		);
-
-		this._strength = tStrength;
 	}
 
 	public get Strength()
@@ -26,7 +23,7 @@ export default class Wind
 		return this._strength;
 	}
 
-	public set Strength( tValue: WindStrength )
+	public set Strength( tValue: number )
 	{
 		runInAction( () => { this._strength = tValue; } )
 	}

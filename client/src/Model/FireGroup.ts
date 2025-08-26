@@ -5,21 +5,22 @@ import Point from "./Point";
 import PolarCoordinate from "./PolarCoordinate";
 import MathUtility from "./Utility/MathUtility";
 import Wind from "./Wind";
-import type WindStrength from "./WindStrength";
+import Target from "./Target";
 
 export default class FireGroup
 {
 	protected _isVisible: boolean = true;
 	protected _name: string = "Fire Group";
-	public readonly wind: Wind;
-	public readonly targetFromSpotter: PolarCoordinate = new PolarCoordinate( 0, 0 );
+	public readonly wind: Wind = new Wind();
+	public readonly targets: Target[] = [];
 	public readonly spotters: PolarCoordinate[] = []; // 0 is origin, rest behave as chain S1->S0, S2->S1
 	public readonly guns: Gun[] = [];
+	protected _activeTarget: Target | null = null;
 	protected _disposeRecalculation?: () => void;
 
-	constructor( tDefaultWindStrength: WindStrength )
+	constructor()
 	{
-		makeObservable<FireGroup, "_isVisible" | "_name">(
+		makeObservable<FireGroup, "_isVisible" | "_name" | "_activeTarget">(
 			this,
 			{
 				_isVisible: observable,
@@ -27,9 +28,14 @@ export default class FireGroup
 				_name: observable,
 				Name: computed,
 				ToggleVisible: action,
+				targets: observable.shallow,
+				_activeTarget: observable,
+				ActiveTarget: computed,
 				spotters: observable.shallow,
 				guns: observable.shallow,
 				Calculate: action,
+				AddTarget: action,
+				RemoveTarget: action,
 				AddGun: action,
 				RemoveGun: action,
 				AddSpotter: action,
@@ -37,15 +43,14 @@ export default class FireGroup
 			}
 		);
 
-		this.wind = new Wind( tDefaultWindStrength );
-
 		this._disposeRecalculation = reaction(
 			() =>
 			[
 				this.wind.Strength,
 				this.wind.Angle,
-				this.targetFromSpotter.Distance,
-				this.targetFromSpotter.Angle,
+				this.ActiveTarget,
+				this.ActiveTarget?.coordinate.Distance ?? 0,
+				this.ActiveTarget?.coordinate.Angle ?? 0,
 				this.spotters.length,
 				...this.spotters.flatMap( x => [ x.Distance, x.Angle ] ),
 				this.guns.length,
@@ -78,7 +83,38 @@ export default class FireGroup
 
 	public set Name( tValue: string )
 	{
-		 runInAction( () => { this._name = tValue; } )
+		runInAction( () => { this._name = tValue; } )
+	}
+
+	public AddTarget()
+	{
+		this.targets.push( new Target() );
+
+		if ( this._activeTarget == null )
+		{
+			this._activeTarget = this.targets[ 0 ];
+		}
+	}
+
+	public RemoveTarget( tIndex: number )
+	{
+		const tempTarget = this.targets[ tIndex ];
+		this.targets.splice( tIndex, 1 );
+
+		if ( tempTarget == this.ActiveTarget )
+		{
+			this._activeTarget = this.targets.length > 0 ? this.targets[ 0 ] : null;
+		}
+	}
+
+	public get ActiveTarget(): Target | null
+	{
+		return this._activeTarget;
+	}
+
+	public set ActiveTarget( tValue: Target | null )
+	{
+		runInAction( () => { this._activeTarget = tValue; } )
 	}
 
 	public AddGun( tType: GunType )
@@ -126,15 +162,14 @@ export default class FireGroup
 		const tempLastSpotter = tempSpotters[ tempSpotters.length - 1 ];
 
 		// Target world position from last Spotter
-		const tempPhiTarget = MathUtility.GetCompassToRadians( this.targetFromSpotter.Angle );
-		const tempTarget = new Point( tempLastSpotter.x + this.targetFromSpotter.Distance * Math.cos( tempPhiTarget ), tempLastSpotter.y + this.targetFromSpotter.Distance * Math.sin( tempPhiTarget ) );
+		const tempPhiTarget = MathUtility.GetCompassToRadians( this.ActiveTarget?.coordinate.Angle ?? 0 );
+		const tempTargetDistance = this.ActiveTarget?.coordinate.Distance ?? 0;
+		const tempTarget = new Point( tempLastSpotter.x + tempTargetDistance * Math.cos( tempPhiTarget ), tempLastSpotter.y + tempTargetDistance * Math.sin( tempPhiTarget ) );
 
 		// Precompute Wind unit vectors
 		const tempPhiWind = MathUtility.GetCompassToRadians( this.wind.Angle );
 		const tempWindX = Math.cos( tempPhiWind );
-		const tempWindY = Math.sin( tempPhiWind ); // unit wind (toward)
-		const tempWindPX = -tempWindY;
-		const tempWindPY = tempWindX; // left-perpendicular
+		const tempWindY = Math.sin( tempPhiWind );
 
 		// Per Gun solution
 		const tempGunsLength = this.guns.length;
@@ -146,14 +181,11 @@ export default class FireGroup
 			// Gun world from S0 (S0->G polar)
 			const tempPhiGun = MathUtility.GetCompassToRadians( tempGun.location.Angle );
 			const tempGunPoint = new Point( tempSpotters[ 0 ].x + tempGun.location.Distance * Math.cos( tempPhiGun ), tempSpotters[ 0 ].y + tempGun.location.Distance * Math.sin( tempPhiGun ) );
-			const tempRange = Math.hypot( tempTarget.x - tempGunPoint.x, tempTarget.y - tempGunPoint.y );
+			//const tempRange = Math.hypot( tempTarget.x - tempGunPoint.x, tempTarget.y - tempGunPoint.y );
 
 			// Wind drift model (per-100m scaling)
-			const tempAlong = this.wind.Strength.along;
-			const tempCross = this.wind.Strength.cross;
-			const tempScaledRange = tempRange / 100; // scale with travel distance
-			const tempDriftX = tempScaledRange * (tempAlong * tempWindX + tempCross * tempWindPX );
-			const tempDriftY = tempScaledRange * (tempAlong * tempWindY + tempCross * tempWindPY );
+			const tempDriftX = tempGun.Type.windEffect * this.wind.Strength * tempWindX;
+			const tempDriftY = tempGun.Type.windEffect * this.wind.Strength * tempWindY;
 
 			// Aim upwind so downwind drift lands on T
 			const tempCX = tempTarget.x - tempDriftX;
@@ -178,11 +210,11 @@ export default class FireGroup
 			}
 
 			// Populate Gun target in polar coords
-			tempGun.target.Distance = tempRangeAim;
-			tempGun.target.Angle = MathUtility.GetRadiansToCompass( tempPhiAim );
+			tempGun.aim.Distance = tempRangeAim;
+			tempGun.aim.Angle = MathUtility.GetRadiansToCompass( tempPhiAim );
 
 			const tempTheta = tempGun.Type.rangeMax > tempGun.Type.rangeMin ? Math.min( 1, Math.max( 0, ( tempRangeAim - tempGun.Type.rangeMin ) / ( tempGun.Type.rangeMax - tempGun.Type.rangeMin ) ) ) : 1;
-			tempGun.TargetRadius = tempGun.Type.inaccuracyMin + ( tempGun.Type.inaccuracyMax - tempGun.Type.inaccuracyMin ) * tempTheta;
+			tempGun.AimRadius = tempGun.Type.inaccuracyMin + ( tempGun.Type.inaccuracyMax - tempGun.Type.inaccuracyMin ) * tempTheta;
 		}
 	}
 }
