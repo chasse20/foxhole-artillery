@@ -1,5 +1,5 @@
 ﻿import { observer } from "mobx-react-lite";
-import type FireGroup from "../../Model/FireGroup";
+import type FireGroup from "../../Model/FireControl/FireGroup";
 import { SpotterRow } from "./SpotterRow";
 
 export const SpottersEditor = observer(

@@ -3,7 +3,7 @@ import Gun from "./Gun";
 import type GunType from "./GunType";
 import Point from "./Point";
 import PolarCoordinate from "./PolarCoordinate";
-import MathUtility from "./Utility/MathUtility";
+import MathUtility from "../Utility/MathUtility";
 import Wind from "./Wind";
 import Target from "./Target";
 import type { Snapshot as PolarCoordinateSnapshot } from "./PolarCoordinate";

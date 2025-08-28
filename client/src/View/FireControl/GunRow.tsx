@@ -1,6 +1,6 @@
 ﻿import { observer } from "mobx-react-lite";
-import type Gun from "../../Model/Gun";
-import type GunType from "../../Model/GunType";
+import type Gun from "../../Model/FireControl/Gun";
+import type GunType from "../../Model/FireControl/GunType";
 import MathUtility from "../../Model/Utility/MathUtility";
 import { NumberBind } from "../Hook/NumberBind";
 import { useState } from "react";

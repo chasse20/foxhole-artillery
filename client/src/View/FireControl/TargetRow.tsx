@@ -1,6 +1,6 @@
 ﻿import { observer } from "mobx-react-lite";
-import type FireGroup from "../../Model/FireGroup";
-import type Target from "../../Model/Target";
+import type FireGroup from "../../Model/FireControl/FireGroup";
+import type Target from "../../Model/FireControl/Target";
 import MathUtility from "../../Model/Utility/MathUtility";
 import { NumberBind } from "../Hook/NumberBind";
 

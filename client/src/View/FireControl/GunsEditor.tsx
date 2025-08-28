@@ -1,6 +1,6 @@
 import { observer } from "mobx-react-lite";
-import type FireGroup from "../../Model/FireGroup";
-import type GunType from "../../Model/GunType";
+import type FireGroup from "../../Model/FireControl/FireGroup";
+import type GunType from "../../Model/FireControl/GunType";
 import { GunRow } from "./GunRow";
 
 export const GunsEditor = observer(

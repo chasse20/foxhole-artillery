@@ -1,13 +1,13 @@
 ﻿import { observer } from "mobx-react-lite";
-import type FireGroup from "../../Model/FireGroup";
-import type GunType from "../../Model/GunType";
+import type FireGroupModel from "../../Model/FireControl/FireGroup";
+import type GunType from "../../Model/FireControl/GunType";
 import { WindEditor } from "./WindEditor";
 import { SpottersEditor } from "./SpottersEditor";
 import { GunsEditor } from "./GunsEditor";
 import { TargetEditor } from "./TargetEditor";
 
-export const FireGroupPanel = observer(
-	function FireGroupPanel( props: { model: FireGroup; gunTypes: GunType[]; onRemove: () => void; } )
+export const FireGroup = observer(
+	function FireGroup( props: { model: FireGroupModel; gunTypes: GunType[]; onRemove: () => void; } )
 	{
 		const { model, onRemove, gunTypes } = props;
 

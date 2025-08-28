@@ -1,9 +1,9 @@
 import { observer } from "mobx-react-lite";
-import { useApp } from "./AppContext";
-import { FireGroupPanel } from "./FireGroup/FireGroupPanel";
+import { useApp } from "../AppContext";
+import { FireGroup } from "./FireGroup";
 
-export const LeftPanel = observer(
-	function LeftPanel()
+export const Panel = observer(
+	function Panel()
 	{
 		const tempApp = useApp();
 
@@ -29,12 +29,11 @@ export const LeftPanel = observer(
 
 				<div className="mt-3 grid gap-3">
 					{tempApp.fireGroups.map((tFireGroup, tIndex) => (
-						<FireGroupPanel
+						<FireGroup
 							key={tIndex}
 							model={tFireGroup}
 							onRemove={() => tempApp.RemoveFireGroup(tIndex)}
 							gunTypes={tempApp.gunTypes}
-							windStrengths={tempApp.windStrengths}
 						/>
 					))}
 				</div>
