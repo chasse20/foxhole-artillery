@@ -47,8 +47,8 @@ export const FireGroup = observer(
 					<div className="grid gap-3 p-3">
 						<WindEditor fireGroup={model} />
 						<TargetEditor fireGroup={model} />
-						<SpottersEditor fireGroup={model} />
 						<GunsEditor fireGroup={model} gunTypes={gunTypes} />
+						<SpottersEditor fireGroup={model} />
 					</div>
 				)}
 			</section>

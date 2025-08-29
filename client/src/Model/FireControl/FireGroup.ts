@@ -1,7 +1,7 @@
 import { action, comparer, makeObservable, observable, reaction, computed, runInAction } from "mobx";
 import Gun from "./Gun";
 import type GunType from "./GunType";
-import Point from "./Point";
+import Point from "../Point";
 import PolarCoordinate from "./PolarCoordinate";
 import MathUtility from "../Utility/MathUtility";
 import Wind from "./Wind";

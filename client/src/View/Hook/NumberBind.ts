@@ -61,14 +61,5 @@ export function NumberBind( get: () => number, set: ( tNumber: number ) => void,
 		}
 	};
 
-	return useMemo(
-		() => (
-			{
-				value: temp,
-				onChange,
-				onBlur,
-			}
-		),
-		[ temp ]
-	);
+	return useMemo( () => ( { value: temp, onChange, onBlur } ), [ temp ] );
 }
