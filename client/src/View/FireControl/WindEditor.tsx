@@ -23,7 +23,7 @@ export const WindEditor = observer(
 						<span className="text-[11px] uppercase tracking-wide text-zinc-400">Strength</span>
 
 						<div className="flex w-full">
-							{[1, 2, 3, 4, 5].map((ws, i, arr) => {
+							{[0, 1, 2, 3, 4, 5].map((ws, i, arr) => {
 								const active = fireGroup.wind.Strength === ws;
 								const first = i === 0;
 								const last = i === arr.length - 1;

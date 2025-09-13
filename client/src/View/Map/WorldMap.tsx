@@ -1,7 +1,7 @@
 ﻿import React from "react";
-import TileView from "./Tile.tsx";
 import { useApp } from "../AppContext.tsx";
 import { observer } from "mobx-react-lite";
+import { Tile } from "./Tile.tsx";
 
 // --- constants: tile-local world units (centred at 0,0) ---
 const TILE_U_HALF_X=109200;
@@ -15,12 +15,12 @@ function HexPathD( t:{ cx:number; cy:number; r:number } )
 {
 	const h=Math.sqrt(3)*t.r;
 	return [
-		`M ${t.cx - t.r/2} ${t.cy - h/2}`,
-		`L ${t.cx + t.r/2} ${t.cy - h/2}`,
-		`L ${t.cx + t.r   } ${t.cy}`,
-		`L ${t.cx + t.r/2} ${t.cy + h/2}`,
-		`L ${t.cx - t.r/2} ${t.cy + h/2}`,
-		`L ${t.cx - t.r   } ${t.cy}`,
+		`M ${t.cx - t.r / 2} ${t.cy - h / 2}`,
+		`L ${t.cx + t.r / 2} ${t.cy - h / 2}`,
+		`L ${t.cx + t.r} ${t.cy}`,
+		`L ${t.cx + t.r / 2} ${t.cy + h / 2}`,
+		`L ${t.cx - t.r / 2} ${t.cy + h/ 2}`,
+		`L ${t.cx - t.r} ${t.cy}`,
 		`Z`
 	].join(" ");
 }
@@ -35,8 +35,8 @@ function WorldOverlay( { map }:{ map: ReturnType<typeof useApp>["map"] } )
 
 	// anchor grid at world (0,0). deadlands is usually (0,0) in your axial layout
 	const originTile=map.tiles.find(t=>t.axial.q===0&&t.axial.r===0) ?? t0;
-	const px0x=originTile.worldPosition.x;
-	const px0y=originTile.worldPosition.y;
+	const px0x=originTile.position.x;
+	const px0y=originTile.position.y;
 
 	const cellW=GRID_U*sx;
 	const cellH=GRID_U*sy;
@@ -56,7 +56,7 @@ function WorldOverlay( { map }:{ map: ReturnType<typeof useApp>["map"] } )
 			<defs>
 				<pattern id="wm-grid" patternUnits="userSpaceOnUse" width={cellW} height={cellH}
 					patternTransform={`translate(${px0x} ${px0y})`}>
-					<path d={`M ${cellW} 0 H 0 M 0 0 V ${cellH}`} stroke="#171717" strokeOpacity="1.0" strokeWidth="0.5"
+					<path d={`M ${cellW} 0 H 0 M 0 0 V ${cellH}`} stroke="#171717" strokeOpacity="0.5" strokeWidth="0.5"
 						vectorEffect="non-scaling-stroke"/>
 				</pattern>
 			</defs>
@@ -65,7 +65,7 @@ function WorldOverlay( { map }:{ map: ReturnType<typeof useApp>["map"] } )
 
 			<g stroke="#fff" strokeOpacity="0.5" fill="none" vectorEffect="non-scaling-stroke">
 				{map.tiles.map(t=>(
-					<path key={`hex-${t.key}`} d={HexPathD({ cx:t.worldPosition.x, cy:t.worldPosition.y, r:t.radius })} strokeWidth="4"/>
+					<path key={`hex-${t.key}`} d={HexPathD({ cx:t.position.x, cy:t.position.y, r:t.radius })} strokeWidth="4"/>
 				))}
 			</g>
 		</svg>
@@ -159,7 +159,11 @@ export const WorldMap = observer(
 			inset: 0,
 			transformOrigin: "0 0",
 			transform: `translate3d(${tempApp.map.X}px, ${tempApp.map.Y}px, 0) scale(${tempApp.map.Zoom})`,
-			willChange: "transform"
+			willChange: "transform",
+			userSelect: "none",
+			WebkitUserSelect: "none",
+			WebkitTapHighlightColor: "transparent",
+			touchAction: "none" // prevents touch selection/scroll gestures; wheel still works
 		};
 
 		return (
@@ -171,11 +175,10 @@ export const WorldMap = observer(
 				onPointerUp={onPointerUp}
 			>
 				<div style={style}>
-					{tempApp.map.tiles.map( t => <TileView key={t.key} tile={t} /> )}
+					{tempApp.map.tiles.map( t => <Tile key={t.key} tile={t} /> )}
 					<WorldOverlay map={tempApp.map}/>
 				</div>
 			</div>
 		);
 	}
 );
-

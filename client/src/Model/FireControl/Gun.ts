@@ -39,6 +39,12 @@ export default class Gun
 		this._type = tType;
 	}
 
+	public get MessageText()
+	{
+		const tempName = ( this.Name ?? "" ).trim() || "Gun";
+		return `((${tempName})) ${Math.round(this.aim.Distance)}m, ${this.aim.Angle.toFixed(1)}\u00B0`;
+	}
+
 	public get Name()
 	{
 		return this._name;

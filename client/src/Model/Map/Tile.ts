@@ -1,31 +1,93 @@
+import { action, makeObservable, observable } from "mobx";
 import type Axial from "../Axial";
 import Point from "../Point";
 import Rectangle from "../Rectangle";
+import type { Snapshot as IconSnapshot } from "./Icon";
+import Icon from "./Icon";
+
+const MIN_X_M = -1091.99999997;
+const MAX_X_M = 1091.99999997;
+const MIN_Y_M = -944.999999958091;
+const MAX_Y_M = 944.999999958091;
+
+export type Snapshot =
+{
+	icons: IconSnapshot[];
+};
 
 export default class Tile
 {
 	public readonly axial: Axial;
 	public readonly radius: number;
+	public readonly position: Point;
 	public readonly worldPosition: Point;
 	public readonly rectangle: Rectangle;
 	public readonly name: string;
 	public readonly key: string;
+	public readonly icons: Icon[] = [];
 
 	constructor( tName: string, tKey: string, tPosition: Axial, tRadius: number )
 	{
+		makeObservable(
+			this,
+			{
+				icons: observable.shallow,
+				Load: action
+			}
+		);
+
 		this.name = tName;
 		this.key = tKey;
 		this.axial = tPosition;
 		this.radius = tRadius;
+		this.position = new Point( this.radius * ( 3 / 2 ) * this.axial.q, this.radius * Math.sqrt( 3 ) * ( this.axial.r + this.axial.q / 2 ) );
 
-		this.worldPosition = new Point( this.radius * ( 3 / 2 ) * this.axial.q, this.radius * Math.sqrt( 3 ) * ( this.axial.r + this.axial.q / 2 ) );
+		// World
+		const tempRadiusMeters = ( MAX_X_M - MIN_X_M ) / 2;
+		this.worldPosition = new Point( tempRadiusMeters * ( 3 / 2 ) * this.axial.q, tempRadiusMeters * Math.sqrt( 3 ) * ( this.axial.r + this.axial.q / 2 ) );
+
+		// Rectangle
+		const tempX = this.radius * ( 3 / 2 ) * this.axial.q;
+		const tempY = this.radius * Math.sqrt( 3 ) * ( this.axial.r + this.axial.q / 2 );
 		const tempHeight = Math.sqrt( 3 ) * this.radius;
 		const tempHalfHeight = tempHeight / 2;
-		this.rectangle = new Rectangle( this.worldPosition.x - this.radius, this.worldPosition.y - tempHalfHeight, this.worldPosition.x + this.radius, this.worldPosition.y + tempHalfHeight );
+		this.rectangle = new Rectangle( tempX - this.radius, tempY - tempHalfHeight, tempX + this.radius, tempY + tempHalfHeight );
 	}
 
-	public GetWorldPosition( tLocalPosition: Point ): Point
+	public GetPixelPosition( tNormalizedPosition: Point ): Point
 	{
-		return new Point( this.rectangle.left + tLocalPosition.x * this.rectangle.Width, this.rectangle.top + tLocalPosition.y * this.rectangle.Height );
+		const tempX = this.rectangle.Width * tNormalizedPosition.x;
+		const tempY = this.rectangle.Height * tNormalizedPosition.y;
+
+		return new Point( this.rectangle.left + tempX, this.rectangle.top + tempY );
+	}
+
+	public GetWorldPosition( tNormalizedPosition: Point ): Point
+	{
+		const tempX = MIN_X_M + ( MAX_X_M - MIN_X_M ) * tNormalizedPosition.x;
+		const tempY = MAX_Y_M - ( MAX_Y_M - MIN_Y_M ) * tNormalizedPosition.y;
+
+		return new Point( this.worldPosition.x + tempX, this.worldPosition.y + tempY );
+	}
+
+	public get Snapshot(): Snapshot
+	{
+		return {
+			icons: this.icons.flatMap( x => x.Snapshot )
+		};
+	}
+
+	public Load( tSnapshot: Snapshot )
+	{
+		// Icons
+		this.icons.length = 0;
+		const tempListLength = tSnapshot.icons.length;
+
+		for ( let i = 0; i < tempListLength; ++i )
+		{
+			const tempSnapshot = tSnapshot.icons[ i ];
+			const tempIcon = new Icon( this, tempSnapshot.position, tempSnapshot.type, tempSnapshot.team );
+			this.icons.push( tempIcon );
+		}
 	}
 }

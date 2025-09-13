@@ -93,6 +93,24 @@ export default class FireGroup
 		this._isVisible = !this._isVisible;
 	}
 
+	public get MessageText()
+	{
+		const tempListLength = this.guns.length;
+		let tempMessage = "";
+
+		for ( let i = 0; i < tempListLength; ++i )
+		{
+			tempMessage += this.guns[ i ].MessageText;
+
+			if ( i > 0 )
+			{
+				tempMessage += "     ";
+			}
+		}
+
+		return tempMessage;
+	}
+
 	public get Name()
 	{
 		return this._name;

@@ -41,7 +41,8 @@ export default class App
 			new GunType( "Cremari Mortar", 45, 80, 5.5, 12, 10 ),
 			new GunType( "120mm Huber Lariat", 100, 300, 25, 35, 10 ),
 			new GunType( "150mm Huber Exalt", 100, 300, 25, 35, 10 ),
-			new GunType( "300mm Storm Cannon", 400, 1000, 50, 50, 50 )
+			new GunType( "300mm Storm Cannon", 400, 1000, 50, 50, 50 ),
+			new GunType( "3C Squire", 375, 500, 39, 51, 10 )
 		];
 
 		// Load

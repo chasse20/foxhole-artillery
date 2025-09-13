@@ -2,12 +2,14 @@
 import Axial from "../Axial";
 import Rectangle from "../Rectangle";
 import Tile from "./Tile";
+import type { Snapshot as TileSnapshot } from "./Tile";
 
 export type Snapshot =
 {
 	x: number;
 	y: number;
 	zoom: number;
+	tiles: TileSnapshot[];
 };
 
 export default class WorldMap
@@ -161,17 +163,26 @@ export default class WorldMap
 		return {
 			x: this._x,
 			y: this._y,
-			zoom: this._zoom
+			zoom: this._zoom,
+			tiles: this.tiles.flatMap( x => x.Snapshot )
 		};
 	}
 
 	public Load( tSnapshot: Snapshot )
 	{
-		if ( tSnapshot != null )
+		this._x = tSnapshot.x;
+		this._y = tSnapshot.y;
+		this._zoom = tSnapshot.zoom;
+
+		// Tiles
+		if ( tSnapshot.tiles != null )
 		{
-			this._x = tSnapshot.x;
-			this._y = tSnapshot.y;
-			this._zoom = tSnapshot.zoom;
+			const tempListLength = tSnapshot.tiles.length;
+
+			for ( let i = 0; i < tempListLength; ++i )
+			{
+				this.tiles[ i ].Load( tSnapshot.tiles[ i ] );
+			}
 		}
 	}
 }

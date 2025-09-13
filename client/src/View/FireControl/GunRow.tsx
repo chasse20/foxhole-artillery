@@ -27,11 +27,9 @@ export const GunRow = observer(
 		// Copy Aim
 		const tempOnCopyAim = async () =>
 		{
-			const tempName = (gun.Name ?? "").trim() || "Gun";
-			const tempText = `${tempName}: ${Math.round(gun.aim.Distance)}m, ${gun.aim.Angle.toFixed(1)} azimuth`;
 			try
 			{
-				await navigator.clipboard.writeText( tempText );
+				await navigator.clipboard.writeText( gun.MessageText );
 				setCopied( true );
 				setTimeout( () => setCopied( false ), 1200 );
 			}

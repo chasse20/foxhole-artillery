@@ -1,5 +1,7 @@
 ﻿import React from "react";
-import TileModel from "../../Model/Map/Tile"
+import { observer } from "mobx-react-lite";
+import TileModel from "../../Model/Map/Tile";
+import Icon from "./Icon";
 
 const TILE_URLS = (
 	() =>
@@ -9,40 +11,58 @@ const TILE_URLS = (
 
 		for ( const [ key, value ] of Object.entries( tempRaw ) )
 		{
-			const tempString = key.lastIndexOf( "/" ) + 1;
-			const tempExtension = key.length - 4; // ".png"
-
-			tempMap[ key.slice( tempString, tempExtension ) ] = value;
+			const tempStart = key.lastIndexOf( "/" ) + 1;
+			const tempEnd = key.length - 4; // ".png"
+			tempMap[ key.slice( tempStart, tempEnd ) ] = value;
 		}
+
 		return tempMap;
 	}
 )();
 
-function TileViewBase( { tile }: { tile: TileModel } )
-{
-	const tempURL = TILE_URLS[ tile.key ];
-	const tempStyle: React.CSSProperties = {
-		position: "absolute",
-		left: `${tile.rectangle.left}px`,
-		top: `${tile.rectangle.top}px`,
-		width: `${tile.rectangle.Width}px`,
-		height: `${tile.rectangle.Height}px`,
-		pointerEvents: "none",
-		imageRendering: "auto"
-	};
+export const Tile = observer(
+	function TileView( { tile }: { tile: TileModel } )
+	{
+		const tempURL = TILE_URLS[ tile.key ];
 
-	return (
-		<img
-			src={ tempURL }
-			alt={ tile.name }
-			style={ tempStyle }
-			draggable={ false }
-			decoding="async"
-			loading="eager"
-		/>
-	);
-}
+		// Tile container (absolute in world space)
+		const tempBoxStyle: React.CSSProperties = {
+			position: "absolute",
+			left: tile.rectangle.left,
+			top: tile.rectangle.top,
+			width: tile.rectangle.Width,
+			height: tile.rectangle.Height
+		};
 
-// Memoize to avoid re-rendering unless the tile reference changes
-const TileView = React.memo( TileViewBase, ( a, b ) => a.tile === b.tile );
-export default TileView;
+		// Base image (non-interactive so panning passes through)
+		const tempImageStyle: React.CSSProperties = {
+			position: "absolute",
+			inset: 0,
+			width: "100%",
+			height: "100%",
+			pointerEvents: "none",
+			imageRendering: "auto",
+			userSelect: "none",
+			WebkitUserSelect: "none"
+		};
+
+		return (
+			<div style={tempBoxStyle}>
+				<img
+					src={ tempURL }
+					alt={ tile.name }
+					style={ tempImageStyle }
+					draggable={ false }
+					decoding="async"
+					loading="eager"
+				/>
+
+				{
+					tile.icons.map( ( tIcon, tIndex ) =>
+						<Icon key={`icon-${tile.key}-${tIndex}`} icon={tIcon} />
+					)
+				}
+			</div>
+		);
+	}
+);
