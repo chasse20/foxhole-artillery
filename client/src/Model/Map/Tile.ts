@@ -107,7 +107,7 @@ export default class Tile
 			for ( let i = 0; i < tempListLength; ++i )
 			{
 				const tempIconData = tData.mapItems[ i ];
-				const tempTeam = tempIconData.teamId == null || tempIconData.teamId == "" ? TeamType.Neutral : ( tempIconData.teamId == "WARDEN" ? TeamType.Warden : TeamType.Colonial );
+				const tempTeam = tempIconData.teamId == null || tempIconData.teamId == "NONE" ? TeamType.Neutral : ( tempIconData.teamId == "WARDENS" ? TeamType.Warden : TeamType.Colonial );
 				const tempIcon = new Icon( this, new Point( tempIconData.x ?? 0, tempIconData.y ?? 0 ), tempIconData.iconType ?? 0, tempTeam )
 				this.icons.push( tempIcon );
 			}

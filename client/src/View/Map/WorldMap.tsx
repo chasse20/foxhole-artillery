@@ -80,6 +80,8 @@ function WorldOverlay( { map }:{ map: ReturnType<typeof useApp>["map"] } )
 	);
 }
 
+type CSSVars = { [ "--wm-icon-scale" ]?: number | string };
+
 export const WorldMap = observer(
 	function WorldMap()
 	{
@@ -220,8 +222,10 @@ export const WorldMap = observer(
 			[ tempApp, tempUpdating ]
 		);
 
-		// Transform from model (conditional will-change, 2D transform)
-		const style: React.CSSProperties =
+		// Transform from model
+		const tempIconScale = Math.min( 4, 1.2 / tempApp.map.Zoom );
+
+		const style: React.CSSProperties & CSSVars =
 		{
 			position: "absolute",
 			inset: 0,
@@ -231,7 +235,8 @@ export const WorldMap = observer(
 			userSelect: "none",
 			WebkitUserSelect: "none",
 			WebkitTapHighlightColor: "transparent",
-			touchAction: "none" // prevents touch text selection/scroll gestures; wheel still works
+			touchAction: "none",
+			[ "--wm-icon-scale" ]: String( tempIconScale )
 		};
 
 		return (
@@ -257,7 +262,7 @@ export const WorldMap = observer(
 				</button>
 
 				<div style={style}>
-					{ tempApp.map.tiles.map( t => <Tile key={t.key} tile={t} /> ) }
+					{tempApp.map.tiles.map( t => <Tile key={t.key} tile={t} /> )}
 					<WorldOverlay map={tempApp.map}/>
 				</div>
 			</div>

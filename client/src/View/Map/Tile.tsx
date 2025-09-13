@@ -39,7 +39,7 @@ export const Tile = observer(
 				/>
 
 				{ tile.icons.map( ( tIcon, tIndex ) =>
-					<Icon key={`icon-${tile.key}-${tIndex}`} icon={tIcon} />
+					<Icon key={ `icon-${tile.key}-${tIndex}` } icon={tIcon} />
 				) }
 			</div>
 		);
