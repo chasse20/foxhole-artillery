@@ -4,11 +4,14 @@ import Point from "../Point";
 import Rectangle from "../Rectangle";
 import type { Snapshot as IconSnapshot } from "./Icon";
 import Icon from "./Icon";
+import API from "../API/API";
+import TileData from "../API/Tile";
+import { TeamType } from "./TeamType";
 
-const MIN_X_M = -1091.99999997;
-const MAX_X_M = 1091.99999997;
-const MIN_Y_M = -944.999999958091;
-const MAX_Y_M = 944.999999958091;
+export const MIN_X_M = -1091.99999997;
+export const MAX_X_M = 1091.99999997;
+export const MIN_Y_M = -944.999999958091;
+export const MAX_Y_M = 944.999999958091;
 
 export type Snapshot =
 {
@@ -28,9 +31,10 @@ export default class Tile
 
 	constructor( tName: string, tKey: string, tPosition: Axial, tRadius: number )
 	{
-		makeObservable(
+		makeObservable<Tile, "HandleUpdate">(
 			this,
 			{
+				HandleUpdate: action,
 				icons: observable.shallow,
 				Load: action
 			}
@@ -56,10 +60,7 @@ export default class Tile
 
 	public GetPixelPosition( tNormalizedPosition: Point ): Point
 	{
-		const tempX = this.rectangle.Width * tNormalizedPosition.x;
-		const tempY = this.rectangle.Height * tNormalizedPosition.y;
-
-		return new Point( this.rectangle.left + tempX, this.rectangle.top + tempY );
+		return new Point( this.rectangle.Width * tNormalizedPosition.x, this.rectangle.Height * tNormalizedPosition.y );
 	}
 
 	public GetWorldPosition( tNormalizedPosition: Point ): Point
@@ -88,6 +89,28 @@ export default class Tile
 			const tempSnapshot = tSnapshot.icons[ i ];
 			const tempIcon = new Icon( this, tempSnapshot.position, tempSnapshot.type, tempSnapshot.team );
 			this.icons.push( tempIcon );
+		}
+	}
+
+	public async UpdateAsync( tAPI: API )
+	{
+		this.HandleUpdate( await tAPI.GetTileAsync( this.key ) );
+	}
+
+	protected HandleUpdate( tData: TileData | null )
+	{
+		if ( tData != null && tData.mapItems != null )
+		{
+			this.icons.length = 0;
+			const tempListLength = tData.mapItems.length;
+
+			for ( let i = 0; i < tempListLength; ++i )
+			{
+				const tempIconData = tData.mapItems[ i ];
+				const tempTeam = tempIconData.teamId == null || tempIconData.teamId == "" ? TeamType.Neutral : ( tempIconData.teamId == "WARDEN" ? TeamType.Warden : TeamType.Colonial );
+				const tempIcon = new Icon( this, new Point( tempIconData.x ?? 0, tempIconData.y ?? 0 ), tempIconData.iconType ?? 0, tempTeam )
+				this.icons.push( tempIcon );
+			}
 		}
 	}
 }

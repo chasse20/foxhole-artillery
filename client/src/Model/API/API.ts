@@ -1,6 +1,6 @@
 import type Tile from "./Tile";
 
-export default class Service
+export default class API
 {
 	protected _URL: string;
 	protected _defaultHeaders: HeadersInit = { "Content-Type": "application/json" };

@@ -4,6 +4,7 @@ import GunType from "./FireControl/GunType";
 import type { Snapshot as MapSnapshot } from "./Map/WorldMap";
 import type { Snapshot as FireGroupSnapshot } from "./FireControl/FireGroup";
 import WorldMap from "./Map/WorldMap";
+import API from "./API/API";
 
 const STORAGE_KEY = "foxhole-artillery:app";
 
@@ -15,6 +16,7 @@ export type Snapshot =
 
 export default class App
 {
+	public readonly API: API = new API( "https://war-service-live.foxholeservices.com/api" );
 	public readonly map: WorldMap = new WorldMap();
 	public readonly gunTypes: GunType[];
 	public readonly fireGroups: FireGroup[] = [];
@@ -110,5 +112,10 @@ export default class App
 				this.fireGroups.push( tempFireGroup );
 			}
 		}
+	}
+
+	public async UpdateAsync()
+	{
+		await this.map.UpdateAsync( this.API );
 	}
 }

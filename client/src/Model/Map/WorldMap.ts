@@ -3,6 +3,7 @@ import Axial from "../Axial";
 import Rectangle from "../Rectangle";
 import Tile from "./Tile";
 import type { Snapshot as TileSnapshot } from "./Tile";
+import API from "../API/API";
 
 export type Snapshot =
 {
@@ -184,5 +185,17 @@ export default class WorldMap
 				this.tiles[ i ].Load( tSnapshot.tiles[ i ] );
 			}
 		}
+	}
+
+	public async UpdateAsync( tAPI: API )
+	{
+		const tempTileTasks = [];
+
+		for ( let i = this.tiles.length - 1; i >= 0; --i )
+		{
+			tempTileTasks.push( this.tiles[ i ].UpdateAsync( tAPI ) );
+		}
+
+		await Promise.all( tempTileTasks );
 	}
 }
