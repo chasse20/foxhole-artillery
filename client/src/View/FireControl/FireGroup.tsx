@@ -17,15 +17,15 @@ export const FireGroup = observer(
 					role="button"
 					tabIndex={0}
 					className="grid grid-cols-[1fr_auto] items-center gap-2 w-full cursor-pointer bg-zinc-800/70 px-3 py-2 hover:bg-zinc-800"
-					onClick={(e) => { e.preventDefault(); model.ToggleVisible(); }}
+					onClick={ ( e ) => { e.preventDefault(); model.ToggleVisible(); } }
 					title="Toggle expand"
 				>
 					<div className="min-w-0">
 						<input
 							className="w-full truncate rounded border border-transparent bg-transparent px-1 py-0.5 text-sm font-medium text-zinc-100 outline-none focus:border-zinc-700 focus:bg-zinc-900 focus:ring-0"
-							value={model.Name}
-							onClick={(e) => e.stopPropagation()}
-							onChange={(e) => (model.Name = e.target.value)}
+							value={ model.Name }
+							onClick={ ( e ) => e.stopPropagation() }
+							onChange={ ( e ) => ( model.Name = e.target.value ) }
 							aria-label="Fire group name"
 							placeholder="Fire Group"
 						/>
@@ -34,23 +34,23 @@ export const FireGroup = observer(
 					<div className="flex items-center gap-2 shrink-0">
 						<button
 							className="h-8 w-8 cursor-pointer rounded-md border border-red-500/50 bg-red-500/10 text-red-400 hover:bg-red-500/20"
-							onClick={(e) => { e.stopPropagation(); onRemove(); }}
+							onClick={ ( e ) => { e.stopPropagation(); onRemove(); } }
 							aria-label="Remove fire group"
 						>
 							×
 						</button>
-						<span className="text-zinc-400">{model.IsVisible ? "▾" : "▸"}</span>
+						<span className="text-zinc-400">{ model.IsVisible ? "▾" : "▸" }</span>
 					</div>
 				</div>
 
-				{model.IsVisible && (
+				{ model.IsVisible && (
 					<div className="grid gap-3 p-3">
-						<WindEditor fireGroup={model} />
-						<TargetEditor fireGroup={model} />
-						<GunsEditor fireGroup={model} gunTypes={gunTypes} />
-						<SpottersEditor fireGroup={model} />
+						<WindEditor fireGroup={ model } />
+						<TargetEditor fireGroup={ model } />
+						<GunsEditor fireGroup={ model } gunTypes={ gunTypes } />
+						<SpottersEditor fireGroup={ model } />
 					</div>
-				)}
+				) }
 			</section>
 		);
 	}

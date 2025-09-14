@@ -1,211 +1,299 @@
 ﻿import React from "react";
 import { useApp } from "../AppContext.tsx";
 import { observer } from "mobx-react-lite";
-import { Tile } from "./Tile.tsx";
-import { MAX_X_M, MAX_Y_M, MIN_X_M, MIN_Y_M } from "../../Model/Map/Tile.ts";
+import type TileModel from "../../Model/Map/Tile";
+import { MIN_X_M, MAX_X_M, MIN_Y_M, MAX_Y_M } from "../../Model/Map/Tile.ts";
+import { TeamType } from "../../Model/Map/TeamType";
 
-// flat-top hex outline (your tile.center is worldPosition)
-function HexPathD( t:{ cx:number; cy:number; r:number } )
+// ----------------------------
+// Helpers
+// ----------------------------
+
+function HexPathPoints( tCenterX: number, tCenterY: number, tRadius: number )
 {
-	const h = Math.sqrt( 3 ) * t.r;
+	const tempH = Math.sqrt( 3 ) * tRadius;
 	return [
-		`M ${t.cx - t.r / 2} ${t.cy - h / 2}`,
-		`L ${t.cx + t.r / 2} ${t.cy - h / 2}`,
-		`L ${t.cx + t.r} ${t.cy}`,
-		`L ${t.cx + t.r / 2} ${t.cy + h / 2}`,
-		`L ${t.cx - t.r / 2} ${t.cy + h / 2}`,
-		`L ${t.cx - t.r} ${t.cy}`,
-		`Z`
-	].join( " " );
+		{ x: tCenterX - tRadius / 2, y: tCenterY - tempH / 2 },
+		{ x: tCenterX + tRadius / 2, y: tCenterY - tempH / 2 },
+		{ x: tCenterX + tRadius,     y: tCenterY },
+		{ x: tCenterX + tRadius / 2, y: tCenterY + tempH / 2 },
+		{ x: tCenterX - tRadius / 2, y: tCenterY + tempH / 2 },
+		{ x: tCenterX - tRadius,     y: tCenterY }
+	];
 }
 
-// one lightweight SVG overlay: 125m grid (pattern) + hex borders
-function WorldOverlay( { map }:{ map: ReturnType<typeof useApp>["map"] } )
+function GetIconScreenSize( tZoom: number ): number
 {
-	// pick any tile (all share same pixel size) to compute px-per-unit
-	const t0 = map.tiles[ 0 ];
-	const TILE_U_W = MAX_X_M - MIN_X_M; // 218400
-	const TILE_U_H = MAX_Y_M - MIN_Y_M; // 189000
-	const sx = t0.rectangle.Width  / TILE_U_W;
-	const sy = t0.rectangle.Height / TILE_U_H;
-
-	// anchor grid at world (0,0)
-	const originTile = map.tiles.find( t => t.axial.q === 0 && t.axial.r === 0 ) ?? t0;
-	const px0x = originTile.position.x;
-	const px0y = originTile.position.y;
-
-	const tempGridSpace = 125; // meters
-	const cellW = tempGridSpace * sx;
-	const cellH = tempGridSpace * sy;
-
-	const b = map.WorldBounds;
-	const style: React.CSSProperties =
-	{
-		position: "absolute",
-		left: `${b.left}px`,
-		top: `${b.top}px`,
-		width: `${b.Width}px`,
-		height: `${b.Height}px`,
-		pointerEvents: "none"
-	};
-
-	return (
-		<svg style={style} viewBox={`${b.left} ${b.top} ${b.Width} ${b.Height}`}>
-			<defs>
-				<pattern
-					id="wm-grid"
-					patternUnits="userSpaceOnUse"
-					width={cellW}
-					height={cellH}
-					patternTransform={`translate(${px0x} ${px0y})`}
-				>
-					<path
-						d={`M ${cellW} 0 H 0 M 0 0 V ${cellH}`}
-						stroke="#171717"
-						strokeOpacity="0.5"
-						strokeWidth="0.5"
-						vectorEffect="non-scaling-stroke"
-					/>
-				</pattern>
-			</defs>
-
-			<rect x={b.left} y={b.top} width={b.Width} height={b.Height} fill="url(#wm-grid)"/>
-
-			<g stroke="#fff" strokeOpacity="0.5" fill="none" vectorEffect="non-scaling-stroke">
-				{map.tiles.map( t => (
-					<path key={`hex-${t.key}`} d={HexPathD( { cx: t.position.x, cy: t.position.y, r: t.radius } )} strokeWidth="4" />
-				) )}
-			</g>
-		</svg>
-	);
+	return Math.min( 30, Math.max( 30, 1 / tZoom ) );
 }
 
-type CSSVars = { [ "--wm-icon-scale" ]?: number | string };
+function GetTeamTintRGB( tTeam: TeamType ): { r: number; g: number; b: number }
+{
+	switch ( tTeam )
+	{
+		case TeamType.Warden:   return { r: 72, g: 125, b: 169 };
+		case TeamType.Colonial: return { r: 101, g: 135, b: 94 };
+		default:                return { r: 255, g: 255, b: 255 };
+	}
+}
+
+function MakeRGBA( r: number, g: number, b: number, a: number = 1 ): string
+{
+	return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+// ----------------------------
+// Image caches (tiles, base icons, tinted icons)
+// ----------------------------
+
+type ImageCache = Map<string, HTMLImageElement>;
+const gTileImages: ImageCache = new Map();
+const gIconImages: ImageCache = new Map();
+const gTintedIcons: Map<string, HTMLCanvasElement> = new Map();
+
+function LoadImage( tURL: string, tOnLoad: () => void ): HTMLImageElement
+{
+	let tempImage = gIconImages.get( tURL ) ?? gTileImages.get( tURL );
+	if ( tempImage != null )
+	{
+		return tempImage;
+	}
+
+	tempImage = new Image();
+	tempImage.decoding = "async";
+	tempImage.loading = "eager";
+	tempImage.addEventListener( "load", tOnLoad, { once: true } );
+	tempImage.src = tURL;
+
+	if ( tURL.includes( "/tiles/" ) )
+	{
+		gTileImages.set( tURL, tempImage );
+	}
+	else
+	{
+		gIconImages.set( tURL, tempImage );
+	}
+	return tempImage;
+}
+
+function GetTintedIconCanvas( tBase: HTMLImageElement, tColor: { r: number; g: number; b: number }, tKey: string ): HTMLCanvasElement
+{
+	const tempExisting = gTintedIcons.get( tKey );
+	if ( tempExisting != null )
+	{
+		return tempExisting;
+	}
+
+	const tempCanvas = document.createElement( "canvas" );
+	const tempWidth = Math.max( 1, tBase.naturalWidth );
+	const tempHeight = Math.max( 1, tBase.naturalHeight );
+	tempCanvas.width = tempWidth;
+	tempCanvas.height = tempHeight;
+
+	const tempContext = tempCanvas.getContext( "2d", { willReadFrequently: false } )!;
+	// 1) draw the base icon
+	tempContext.globalCompositeOperation = "source-over";
+	tempContext.clearRect( 0, 0, tempWidth, tempHeight );
+	tempContext.drawImage( tBase, 0, 0, tempWidth, tempHeight );
+
+	// 2) multiply tint color
+	tempContext.globalCompositeOperation = "multiply";
+	tempContext.fillStyle = MakeRGBA( tColor.r, tColor.g, tColor.b, 1 );
+	tempContext.fillRect( 0, 0, tempWidth, tempHeight );
+
+	// 3) keep original alpha
+	tempContext.globalCompositeOperation = "destination-in";
+	tempContext.drawImage( tBase, 0, 0, tempWidth, tempHeight );
+
+	gTintedIcons.set( tKey, tempCanvas );
+	return tempCanvas;
+}
+
+// ----------------------------
+type IconHit = { tile: TileModel; iconIndex: number; cx: number; cy: number; half: number };
+// ----------------------------
 
 export const WorldMap = observer(
 	function WorldMap()
 	{
 		const tempApp = useApp();
 
-		// transient "interacting" signal for conditional will-change
-		const [ isInteracting, setIsInteracting ] = React.useState( false );
-		const tempInteractRAF = React.useRef<number | null>( null );
+		const tempWrapRef = React.useRef<HTMLDivElement | null>( null );
+		const tempCanvasRef = React.useRef<HTMLCanvasElement | null>( null );
 
-		const touch = React.useCallback(
+		const tempRafRef = React.useRef<number | null>( null );
+		const tempNeedsRenderRef = React.useRef<boolean>( true );
+
+		const tempDragRef = React.useRef<{ x: number; y: number } | null>( null );
+		const tempPanDeltaRef = React.useRef( { dx: 0, dy: 0 } );
+
+		const tempIconHitsRef = React.useRef<IconHit[]>( [] );
+
+		// Keep canvas sized to CSS pixel box with DPR backing
+		React.useEffect(
 			() =>
 			{
-				if ( tempInteractRAF.current != null )
+				const tempElement = tempWrapRef.current;
+				const tempCanvas = tempCanvasRef.current;
+				if ( tempElement == null || tempCanvas == null ) return;
+
+				const OnResize = () =>
 				{
-					cancelAnimationFrame( tempInteractRAF.current );
-					tempInteractRAF.current = null;
-				}
-				if ( !isInteracting ) setIsInteracting( true );
-				tempInteractRAF.current = requestAnimationFrame( () =>
-				{
-					setIsInteracting( false );
-					tempInteractRAF.current = null;
-				} );
-			},
-			[ isInteracting ]
-		);
+					const tempRect = tempElement.getBoundingClientRect();
+					const tempDPR = window.devicePixelRatio || 1;
 
-		React.useEffect( () => () => { if ( tempInteractRAF.current != null ) cancelAnimationFrame( tempInteractRAF.current ); }, [] );
+					tempCanvas.style.width = `${tempRect.width}px`;
+					tempCanvas.style.height = `${tempRect.height}px`;
+					tempCanvas.width = Math.max( 1, Math.floor( tempRect.width  * tempDPR ) );
+					tempCanvas.height = Math.max( 1, Math.floor( tempRect.height * tempDPR ) );
 
-		// Pan (rAF-coalesced)
-		const dragRef = React.useRef<{ x: number; y: number } | null>( null );
-		const panDeltaRef = React.useRef( { dx: 0, dy: 0 } );
-		const panRafRef = React.useRef<number | undefined>( undefined );
-
-		const flushPan = () =>
-		{
-			const { dx, dy } = panDeltaRef.current;
-			if ( dx || dy )
-			{
-				tempApp.map.X = tempApp.map.X + dx;
-				tempApp.map.Y = tempApp.map.Y + dy;
-				panDeltaRef.current = { dx: 0, dy: 0 };
-			}
-			panRafRef.current = undefined;
-		};
-
-		const onPointerDown = ( e: React.PointerEvent ) =>
-		{
-			if ( ( e.target as HTMLElement ).closest( '[data-marker="1"]' ) ) return;
-			( e.currentTarget as Element ).setPointerCapture( e.pointerId );
-			dragRef.current = { x: e.clientX, y: e.clientY };
-			touch();
-		};
-
-		const onPointerMove = ( e: React.PointerEvent ) =>
-		{
-			const d = dragRef.current; if ( !d ) return;
-			const dx = e.clientX - d.x, dy = e.clientY - d.y;
-			dragRef.current = { x: e.clientX, y: e.clientY };
-			panDeltaRef.current.dx += dx;
-			panDeltaRef.current.dy += dy;
-			if ( panRafRef.current == null ) panRafRef.current = requestAnimationFrame( flushPan );
-			touch();
-		};
-
-		const endPan = ( e: React.PointerEvent ) =>
-		{
-			dragRef.current = null;
-			( e.currentTarget as Element ).releasePointerCapture( e.pointerId );
-			if ( panRafRef.current != null )
-			{
-				cancelAnimationFrame( panRafRef.current );
-				flushPan();
-			}
-			touch();
-		};
-
-		const onPointerUp = endPan;
-		const onPointerCancel = endPan;
-		const onPointerLeave = endPan;
-
-		// Zoom (native listener with passive:false; rAF-coalesced)
-		const tempWrapRef = React.useRef<HTMLDivElement | null>( null );
-
-		React.useEffect( () =>
-		{
-			const el = tempWrapRef.current; if ( !el ) return;
-			let queued = false;
-
-			const onWheel = ( e: WheelEvent ) =>
-			{
-				e.preventDefault();
-				const r = el.getBoundingClientRect();
-				const cx = e.clientX - r.left;
-				const cy = e.clientY - r.top;
-				const k = Math.exp( -e.deltaY * 0.0015 );
-
-				const apply = () =>
-				{
-					const oldZ = tempApp.map.Zoom > 0 ? tempApp.map.Zoom : 0.6;
-					const newZ = Math.min( 5, Math.max( 0.1, oldZ * k ) );
-					const s = newZ / oldZ;
-					tempApp.map.X = cx - s * ( cx - tempApp.map.X );
-					tempApp.map.Y = cy - s * ( cy - tempApp.map.Y );
-					tempApp.map.Zoom = newZ;
-					queued = false;
+					tempNeedsRenderRef.current = true;
+					QueueRender();
 				};
 
-				if ( !queued )
+				const tempObserver = new ResizeObserver( OnResize );
+				tempObserver.observe( tempElement );
+				OnResize();
+
+				return () => tempObserver.disconnect();
+			},
+			[]
+		);
+
+		function QueueRender()
+		{
+			if ( tempRafRef.current != null ) return;
+			tempRafRef.current = requestAnimationFrame(
+				() =>
 				{
-					queued = true;
-					requestAnimationFrame( apply );
+					tempRafRef.current = null;
+					if ( tempNeedsRenderRef.current )
+					{
+						tempNeedsRenderRef.current = false;
+						Draw();
+					}
 				}
+			);
+		}
 
-				touch();
-			};
+		// Wheel zoom (cursor-anchored)
+		React.useEffect(
+			() =>
+			{
+				const tempElement = tempWrapRef.current; if ( tempElement == null ) return;
+				let tempQueued = false;
 
-			el.addEventListener( "wheel", onWheel, { passive: false } );
-			return () => el.removeEventListener( "wheel", onWheel );
-		}, [ tempApp.map, touch ] );
+				const OnWheel = ( tEvent: WheelEvent ) =>
+				{
+					tEvent.preventDefault();
 
-		// Update
+					const tempRect = tempElement.getBoundingClientRect();
+					const tempClientX = tEvent.clientX - tempRect.left;
+					const tempClientY = tEvent.clientY - tempRect.top;
+					const tempK = Math.exp( -tEvent.deltaY * 0.0015 );
+
+					const Apply = () =>
+					{
+						const tempOldZ = tempApp.map.Zoom > 0 ? tempApp.map.Zoom : 0.6;
+						const tempNewZ = Math.min( 5, Math.max( 0.1, tempOldZ * tempK ) );
+						const tempS = tempNewZ / tempOldZ;
+
+						tempApp.map.X = tempClientX - tempS * ( tempClientX - tempApp.map.X );
+						tempApp.map.Y = tempClientY - tempS * ( tempClientY - tempApp.map.Y );
+						tempApp.map.Zoom = tempNewZ;
+
+						tempNeedsRenderRef.current = true;
+						tempQueued = false;
+						QueueRender();
+					};
+
+					if ( !tempQueued )
+					{
+						tempQueued = true;
+						requestAnimationFrame( Apply );
+					}
+				};
+
+				tempElement.addEventListener( "wheel", OnWheel, { passive: false } );
+				return () => tempElement.removeEventListener( "wheel", OnWheel );
+			},
+			[ tempApp.map ]
+		);
+
+		// Pointer pan (rAF-coalesced)
+		const OnPointerDown = ( tEvent: React.PointerEvent ) =>
+		{
+			( tEvent.currentTarget as Element ).setPointerCapture( tEvent.pointerId );
+			tempDragRef.current = { x: tEvent.clientX, y: tEvent.clientY };
+		};
+
+		const OnPointerMove = ( tEvent: React.PointerEvent ) =>
+		{
+			const tempDrag = tempDragRef.current; if ( tempDrag == null ) return;
+			const tempDx = tEvent.clientX - tempDrag.x;
+			const tempDy = tEvent.clientY - tempDrag.y;
+			tempDragRef.current = { x: tEvent.clientX, y: tEvent.clientY };
+
+			tempPanDeltaRef.current.dx += tempDx;
+			tempPanDeltaRef.current.dy += tempDy;
+
+			if ( tempRafRef.current == null )
+			{
+				tempRafRef.current = requestAnimationFrame(
+					() =>
+					{
+						tempRafRef.current = null;
+
+						const { dx, dy } = tempPanDeltaRef.current;
+						if ( dx || dy )
+						{
+							tempApp.map.X = tempApp.map.X + dx;
+							tempApp.map.Y = tempApp.map.Y + dy;
+							tempPanDeltaRef.current = { dx: 0, dy: 0 };
+
+							tempNeedsRenderRef.current = true;
+							QueueRender();
+						}
+					}
+				);
+			}
+		};
+
+		const OnPointerUp = ( tEvent: React.PointerEvent ) =>
+		{
+			tempDragRef.current = null;
+			( tEvent.currentTarget as Element ).releasePointerCapture( tEvent.pointerId );
+		};
+
+		// Click hit test (CSS px -> world coords)
+		const OnClick = ( tEvent: React.MouseEvent ) =>
+		{
+			const tempCanvas = tempCanvasRef.current; if ( tempCanvas == null ) return;
+
+			const tempRect = tempCanvas.getBoundingClientRect();
+			const tempScreenX = tEvent.clientX - tempRect.left;
+			const tempScreenY = tEvent.clientY - tempRect.top;
+
+			const tempWorldX = ( tempScreenX - tempApp.map.X ) / tempApp.map.Zoom;
+			const tempWorldY = ( tempScreenY - tempApp.map.Y ) / tempApp.map.Zoom;
+
+			const tempHits = tempIconHitsRef.current;
+			for ( let i = tempHits.length - 1; i >= 0; --i )
+			{
+				const tempHit = tempHits[ i ];
+				if ( Math.abs( tempWorldX - tempHit.cx ) <= tempHit.half &&
+					 Math.abs( tempWorldY - tempHit.cy ) <= tempHit.half )
+				{
+					// TODO: wire your icon click
+					console.log("Clicked icon", tempHit.tile.key, tempHit.iconIndex);
+					break;
+				}
+			}
+		};
+
+		// Update button
 		const [ tempUpdating, setTempUpdating ] = React.useState( false );
-		const onUpdateClick = React.useCallback(
+		const OnUpdateClick = React.useCallback(
 			async () =>
 			{
 				if ( tempUpdating ) return;
@@ -217,54 +305,210 @@ export const WorldMap = observer(
 				finally
 				{
 					setTempUpdating( false );
+					tempNeedsRenderRef.current = true;
+					QueueRender();
 				}
 			},
 			[ tempApp, tempUpdating ]
 		);
 
-		// Transform from model
-		const tempIconScale = Math.min( 4, 1.2 / tempApp.map.Zoom );
+		// Draw everything
+		function Draw()
+		{
+			const tempCanvas = tempCanvasRef.current; if ( tempCanvas == null ) return;
+			const tempContext = tempCanvas.getContext( "2d" )!;
+			const tempDPR = window.devicePixelRatio || 1;
 
-		const style: React.CSSProperties & CSSVars =
+			// Reset to device pixels and clear
+			tempContext.setTransform( 1, 0, 0, 1, 0, 0 );
+			tempContext.clearRect( 0, 0, tempCanvas.width, tempCanvas.height );
+
+			// Scale once to CSS px
+			tempContext.scale( tempDPR, tempDPR );
+
+			// Now all coordinates we use are in CSS pixels.
+			// Apply world transform (CSS px space)
+			const tempZoom = tempApp.map.Zoom > 0 ? tempApp.map.Zoom : 0.6;
+			tempContext.translate( tempApp.map.X, tempApp.map.Y );
+			tempContext.scale( tempZoom, tempZoom );
+
+			// World background
+			tempContext.fillStyle = "#111827"; // bg-neutral-900
+			tempContext.fillRect( -1e6, -1e6, 2e6, 2e6 );
+
+			// Tiles
+			for ( let i = 0; i < tempApp.map.tiles.length; ++i )
+			{
+				const tempTile = tempApp.map.tiles[ i ];
+				const tempURL = `/tiles/${tempTile.key}.png`;
+				const tempImage = LoadImage( tempURL, () => { tempNeedsRenderRef.current = true; QueueRender(); } );
+
+				if ( tempImage.complete && tempImage.naturalWidth > 0 )
+				{
+					tempContext.imageSmoothingEnabled = true;
+					tempContext.drawImage(
+						tempImage,
+						tempTile.rectangle.left,
+						tempTile.rectangle.top,
+						tempTile.rectangle.Width,
+						tempTile.rectangle.Height
+					);
+				}
+				else
+				{
+					tempContext.fillStyle = "#0b0f19";
+					tempContext.fillRect( tempTile.rectangle.left, tempTile.rectangle.top, tempTile.rectangle.Width, tempTile.rectangle.Height );
+				}
+			}
+
+			// Grid (125m), anchored at Deadlands if present
+			DrawGrid( tempContext );
+
+			// Hex borders (constant on-screen thickness: scale by 1/zoom)
+			tempContext.save();
+			tempContext.lineWidth = 1.25 / tempZoom;
+			tempContext.strokeStyle = "rgba(255,255,255,0.5)";
+			for ( let i = 0; i < tempApp.map.tiles.length; ++i )
+			{
+				const tempTile = tempApp.map.tiles[ i ];
+				const tempPts = HexPathPoints( tempTile.position.x, tempTile.position.y, tempTile.radius );
+				tempContext.beginPath();
+				tempContext.moveTo( tempPts[ 0 ].x, tempPts[ 0 ].y );
+				for ( let j = 1; j < tempPts.length; ++j )
+				{
+					tempContext.lineTo( tempPts[ j ].x, tempPts[ j ].y );
+				}
+				tempContext.closePath();
+				tempContext.stroke();
+			}
+			tempContext.restore();
+
+			// Icons (keep hit regions)
+			tempIconHitsRef.current = [];
+			DrawIcons( tempContext, tempZoom );
+		}
+
+		function DrawGrid( tContext: CanvasRenderingContext2D )
+		{
+			const tempTiles = tempApp.map.tiles;
+			if ( tempTiles.length === 0 ) return;
+
+			const tempTile = tempTiles[ 0 ];
+			const tempPxPerMeterX = tempTile.rectangle.Width  / ( MAX_X_M - MIN_X_M );
+			const tempPxPerMeterY = tempTile.rectangle.Height / ( MAX_Y_M - MIN_Y_M );
+			const tempCellW = 125 * tempPxPerMeterX; // 125m
+			const tempCellH = 125 * tempPxPerMeterY;
+
+			const tempOriginTile = tempTiles.find( x => x.axial.q === 0 && x.axial.r === 0 ) ?? tempTile;
+			const tempAnchorX = tempOriginTile.position.x;
+			const tempAnchorY = tempOriginTile.position.y;
+
+			const tempB = tempApp.map.WorldBounds;
+
+			const tempStartX = tempAnchorX + Math.floor( ( tempB.left - tempAnchorX ) / tempCellW ) * tempCellW;
+			const tempStartY = tempAnchorY + Math.floor( ( tempB.top  - tempAnchorY ) / tempCellH ) * tempCellH;
+
+			const tempZoom = Math.max( 0.001, tempApp.map.Zoom );
+			tContext.save();
+			tContext.lineWidth = 0.75 / tempZoom;
+			tContext.strokeStyle = "rgba(23,23,23,0.5)";
+
+			for ( let x = tempStartX; x <= tempB.right; x += tempCellW )
+			{
+				tContext.beginPath();
+				tContext.moveTo( x, tempB.top );
+				tContext.lineTo( x, tempB.bottom );
+				tContext.stroke();
+			}
+
+			for ( let y = tempStartY; y <= tempB.bottom; y += tempCellH )
+			{
+				tContext.beginPath();
+				tContext.moveTo( tempB.left, y );
+				tContext.lineTo( tempB.right, y );
+				tContext.stroke();
+			}
+
+			tContext.restore();
+		}
+
+		function DrawIcons( tContext: CanvasRenderingContext2D, tZoom: number )
+		{
+			const tempTiles = tempApp.map.tiles;
+
+			// Desired on-screen size (CSS px), convert to world units by 1/zoom.
+			const tempScreenSize = GetIconScreenSize( tZoom );
+			const tempWorldSize = tempScreenSize / tZoom;
+			const tempHalf = tempWorldSize / 2;
+
+			for ( let i = 0; i < tempTiles.length; ++i )
+			{
+				const tempTile = tempTiles[ i ];
+				const tempIcons = tempTile.icons;
+				if ( tempIcons.length === 0 ) continue;
+
+				for ( let j = 0; j < tempIcons.length; ++j )
+				{
+					const tempIcon = tempIcons[ j ];
+
+					const tempPx = tempTile.rectangle.left + tempTile.rectangle.Width  * tempIcon.position.x;
+					const tempPy = tempTile.rectangle.top  + tempTile.rectangle.Height * tempIcon.position.y;
+
+					const tempURL = `/icons/${tempIcon.type}.png`;
+					const tempBase = LoadImage( tempURL, () => { tempNeedsRenderRef.current = true; QueueRender(); } );
+					if ( !tempBase.complete || tempBase.naturalWidth === 0 ) continue;
+
+					const { r, g, b } = GetTeamTintRGB( tempIcon.team );
+					const tempTintKey = `${tempIcon.type}_${r}_${g}_${b}`;
+					const tempTinted = GetTintedIconCanvas( tempBase, { r, g, b }, tempTintKey );
+
+					tContext.imageSmoothingEnabled = true;
+					tContext.drawImage( tempTinted, tempPx - tempHalf, tempPy - tempHalf, tempWorldSize, tempWorldSize );
+
+					tempIconHitsRef.current.push( { tile: tempTile, iconIndex: j, cx: tempPx, cy: tempPy, half: tempHalf } );
+				}
+			}
+		}
+
+		// Kick an initial draw (and whenever React re-renders this component)
+		React.useEffect(
+			() =>
+			{
+				tempNeedsRenderRef.current = true;
+				QueueRender();
+			}
+		);
+
+		const tempRootClass = "relative h-full w-full overflow-hidden bg-neutral-900 overscroll-contain";
+		const tempCanvasStyle: React.CSSProperties =
 		{
 			position: "absolute",
 			inset: 0,
-			transformOrigin: "0 0",
-			transform: `translate(${tempApp.map.X}px, ${tempApp.map.Y}px) scale(${tempApp.map.Zoom})`,
-			willChange: isInteracting ? "transform" : undefined,
+			touchAction: "none",
 			userSelect: "none",
 			WebkitUserSelect: "none",
-			WebkitTapHighlightColor: "transparent",
-			touchAction: "none",
-			[ "--wm-icon-scale" ]: String( tempIconScale )
+			WebkitTapHighlightColor: "transparent"
 		};
 
 		return (
 			<div
 				ref={tempWrapRef}
-				className="relative h-full w-full overflow-hidden bg-neutral-900 overscroll-contain"
-				onPointerDown={onPointerDown}
-				onPointerMove={onPointerMove}
-				onPointerUp={onPointerUp}
-				onPointerCancel={onPointerCancel}
-				onPointerLeave={onPointerLeave}
-				onDragStart={ e => e.preventDefault() }
-				onMouseDown={ e => e.preventDefault() } // suppresses native selection on long drags
-				onContextMenu={ e => e.preventDefault() } // avoid context menu during panning
+				className={tempRootClass}
+				onPointerDown={OnPointerDown}
+				onPointerMove={OnPointerMove}
+				onPointerUp={OnPointerUp}
+				onClick={OnClick}
 			>
 				<button
-					className="absolute right-3 top-3 z-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm text-zinc-100 hover:bg-zinc-800 disabled:opacity-60"
-					onClick={onUpdateClick}
-					onPointerDown={ e => e.stopPropagation() } // don't start a pan
+					className="absolute right-3 top-3 z-10 rounded-md border border-white/10 bg-zinc-900 px-3 py-1 text-sm text-white hover:bg-zinc-800"
+					onClick={OnUpdateClick}
+					onPointerDown={ e => e.stopPropagation() }
 					disabled={tempUpdating}
 				>
 					{ tempUpdating ? "Updating…" : "Update" }
 				</button>
 
-				<div style={style}>
-					{tempApp.map.tiles.map( t => <Tile key={t.key} tile={t} /> )}
-					<WorldOverlay map={tempApp.map}/>
-				</div>
+				<canvas ref={tempCanvasRef} style={tempCanvasStyle}/>
 			</div>
 		);
 	}

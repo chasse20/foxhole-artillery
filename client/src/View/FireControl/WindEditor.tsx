@@ -10,8 +10,8 @@ export const WindEditor = observer(
 
 		const tempAzimuthBind = NumberBind(
 			() => fireGroup.wind.Angle,
-			(n) => (fireGroup.wind.Angle = MathUtility.Get360Wrap(n)),
-			{ sanitize: (n) => MathUtility.Get360Wrap(n) }
+			( n ) => ( fireGroup.wind.Angle = MathUtility.Get360Wrap( n ) ),
+			{ sanitize: ( n ) => MathUtility.Get360Wrap( n ) }
 		);
 
 		return (
@@ -23,32 +23,33 @@ export const WindEditor = observer(
 						<span className="text-[11px] uppercase tracking-wide text-zinc-400">Strength</span>
 
 						<div className="flex w-full">
-							{[0, 1, 2, 3, 4, 5].map((ws, i, arr) => {
-								const active = fireGroup.wind.Strength === ws;
-								const first = i === 0;
-								const last = i === arr.length - 1;
+							{ [ 0, 1, 2, 3, 4, 5 ].map(
+								( tWindStrength, i, tArray ) =>
+								{
+									const tempIsActive = fireGroup.wind.Strength === tWindStrength;
 
-								return (
-									<button
-										key={i}
-										type="button"
-										onClick={() => (fireGroup.wind.Strength = ws)}
-										disabled={active}
-										aria-pressed={active}
-										className={[
-											"h-[40px] flex-1 text-sm border cursor-pointer select-none",
-											"text-center",
-											first ? "rounded-l-md" : "rounded-none -ml-px",
-											last && "rounded-r-md",
-											active
-												? "z-10 border-indigo-500 bg-indigo-600 text-white shadow-sm"
-												: "border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700",
-										].filter(Boolean).join(" ")}
-									>
-										{ws}
-									</button>
-								);
-							})}
+									return (
+										<button
+											key={i}
+											type="button"
+											onClick={ () => ( fireGroup.wind.Strength = tWindStrength ) }
+											disabled={ tempIsActive }
+											aria-pressed={ tempIsActive }
+											className={ [
+												"h-[40px] flex-1 text-sm border cursor-pointer select-none",
+												"text-center",
+												i === 0 ? "rounded-l-md" : "rounded-none -ml-px",
+												i === tArray.length - 1 && "rounded-r-md",
+												tempIsActive
+													? "z-10 border-indigo-500 bg-indigo-600 text-white shadow-sm"
+													: "border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700",
+											].filter( Boolean ).join(" ") }
+										>
+											{ tWindStrength }
+										</button>
+									);
+								}
+							) }
 						</div>
 					</div>
 
@@ -59,11 +60,9 @@ export const WindEditor = observer(
 								className="h-[40px] w-full rounded-md border border-zinc-700 bg-zinc-800 pr-8 pl-3 text-right text-base text-zinc-100 [font-variant-numeric:tabular-nums] shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
 								type="number"
 								{ ...tempAzimuthBind }
-								step={1}
+								step={ 1 }
 							/>
-							<span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-zinc-400 text-sm">
-								{"\u00B0"}
-							</span>
+							<span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-zinc-400 text-sm">{"\u00B0"}</span>
 						</div>
 					</label>
 				</div>
