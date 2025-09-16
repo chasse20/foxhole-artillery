@@ -2,27 +2,14 @@
 import type Gun from "../../Model/FireControl/Gun";
 import type GunType from "../../Model/FireControl/GunType";
 import MathUtility from "../../Model/Utility/MathUtility";
-import { NumberBind } from "../Hook/NumberBind";
 import { useState } from "react";
+import NumberInput from "./NumberInput";
 
 export const GunRow = observer(
 	function GunRow( props: { gun: Gun; gunTypes: GunType[]; onRemove: () => void } )
 	{
 		const { gun, gunTypes, onRemove } = props;
-		const tempTypeIndex = Math.max( 0, gunTypes.indexOf( gun.Type ) );
 		const [ copied, setCopied ] = useState( false );
-
-		// Binds
-		const tempDistanceBind = NumberBind(
-			() => gun.location.Distance,
-			( n ) => ( gun.location.Distance = Math.max( 0, n ) ),
-			{ min: 0 }
-		);
-		const tempAzimuthBind = NumberBind(
-			() => gun.location.Angle,
-			( n ) => ( gun.location.Angle = MathUtility.Get360Wrap( n ) ),
-			{ sanitize: ( n ) => MathUtility.Get360Wrap( n ) }
-		);
 
 		// Copy Aim
 		const tempOnCopyAim = async () =>
@@ -87,12 +74,13 @@ export const GunRow = observer(
 					<label className="grid gap-1">
 						<span className="text-[11px] uppercase tracking-wide text-zinc-400">Distance</span>
 						<div className="relative">
-							<input
+							<NumberInput
 								className="h-[40px] w-full rounded-md border border-zinc-700 bg-zinc-800 pr-10 pl-3 text-right text-base text-zinc-100 [font-variant-numeric:tabular-nums] shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-								type="number"
-								{ ...tempDistanceBind }
-								min={ 0 }
 								step={ 1 }
+								get={ () => gun.location.Distance }
+								set={ ( n ) => ( gun.location.Distance = Math.max( 0, n ) ) }
+								options={ { min: 0 } }
+								aria-label="Distance"
 							/>
 							<span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-zinc-400 text-sm">m</span>
 						</div>
@@ -101,11 +89,13 @@ export const GunRow = observer(
 					<label className="grid gap-1">
 						<span className="text-[11px] uppercase tracking-wide text-zinc-400">Azimuth</span>
 						<div className="relative">
-							<input
+							<NumberInput
 								className="h-[40px] w-full rounded-md border border-zinc-700 bg-zinc-800 pr-10 pl-3 text-right text-base text-zinc-100 [font-variant-numeric:tabular-nums] shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-								type="number"
-								{ ...tempAzimuthBind }
 								step={ 1 }
+								get={ () => gun.location.Angle }
+								set={ ( n ) => ( gun.location.Angle = MathUtility.Get360Wrap( n ) ) }
+								options={ { min: 0 } }
+								aria-label="Azimuth"
 							/>
 							<span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-zinc-400 text-sm">{"\u00B0"}</span>
 						</div>

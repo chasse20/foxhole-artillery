@@ -1,25 +1,12 @@
 ﻿import { observer } from "mobx-react-lite";
 import MathUtility from "../../Model/Utility/MathUtility";
 import type PolarCoordinate from "../../Model/FireControl/PolarCoordinate";
-import { NumberBind } from "../Hook/NumberBind";
+import NumberInput from "./NumberInput";
 
 export const SpotterRow = observer(
 	function SpotterRow( props: { index: number; leg: PolarCoordinate; onRemove: () => void; } )
 	{
 		const { index, leg, onRemove } = props;
-
-		// Binds
-		const tempDistanceBind = NumberBind(
-			() => leg.Distance,
-			( n ) => ( leg.Distance = Math.max( 0, n ) ),
-			{ min: 0 }
-		);
-
-		const tempAzimuthBind = NumberBind(
-			() => leg.Angle,
-			( n ) => ( leg.Angle = MathUtility.Get360Wrap( n ) ),
-			{ sanitize: ( n ) => MathUtility.Get360Wrap( n ) }
-		);
 
 		// Render
 		return (
@@ -31,22 +18,25 @@ export const SpotterRow = observer(
 
 				{/* Inputs and delete */}
 				<div className="col-start-1 relative">
-					<input
+					<NumberInput
 						className="h-[40px] w-full rounded-md border border-zinc-700 bg-zinc-800 pr-10 pl-3 text-right text-base text-zinc-100 [font-variant-numeric:tabular-nums] shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-						type="number"
-						min={ 0 }
 						step={ 1 }
-						{ ...tempDistanceBind }
+						get={ () => leg.Distance }
+						set={ ( n ) => ( leg.Distance = Math.max( 0, n ) ) }
+						options={ { min: 0 } }
+						aria-label="Distance"
 					/>
 					<span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-zinc-400 text-sm">m</span>
 				</div>
 
 				<div className="col-start-2 relative">
-					<input
+					<NumberInput
 						className="h-[40px] w-full rounded-md border border-zinc-700 bg-zinc-800 pr-8 pl-3 text-right text-base text-zinc-100 [font-variant-numeric:tabular-nums] shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-						type="number"
-						step="any"
-						{ ...tempAzimuthBind }
+						step={ 1 }
+						get={ () => leg.Angle }
+						set={ ( n ) => ( leg.Angle = MathUtility.Get360Wrap( n ) ) }
+						options={ { min: 0 } }
+						aria-label="Azimuth"
 					/>
 					<span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-zinc-400 text-sm">{"\u00B0"}</span>
 				</div>

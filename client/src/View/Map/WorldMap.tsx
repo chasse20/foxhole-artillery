@@ -24,15 +24,18 @@ function HexPathPoints( tCenterX: number, tCenterY: number, tRadius: number )
 
 function GetIconScreenSize( tZoom: number ): number
 {
-	return Math.min( 30, Math.max( 30, 1 / tZoom ) );
+	// Bigger when zoomed out, smaller when zoomed in (smoothly).
+	const tempBase = 26;
+	const tempSize = tempBase * Math.pow( 1 / Math.max( tZoom, 0.001 ), 0.8 );
+	return Math.min( 40, Math.max( 14, tempSize ) );
 }
 
 function GetTeamTintRGB( tTeam: TeamType ): { r: number; g: number; b: number }
 {
 	switch ( tTeam )
 	{
-		case TeamType.Warden:   return { r: 72, g: 125, b: 169 };
-		case TeamType.Colonial: return { r: 101, g: 135, b: 94 };
+		case TeamType.Warden:   return { r: 21, g: 38,  b: 18 };
+		case TeamType.Colonial: return { r: 4,  g: 23,  b: 57 };
 		default:                return { r: 255, g: 255, b: 255 };
 	}
 }
@@ -285,7 +288,7 @@ export const WorldMap = observer(
 					 Math.abs( tempWorldY - tempHit.cy ) <= tempHit.half )
 				{
 					// TODO: wire your icon click
-					console.log("Clicked icon", tempHit.tile.key, tempHit.iconIndex);
+					// console.log("Clicked icon", tempHit.tile.key, tempHit.iconIndex);
 					break;
 				}
 			}

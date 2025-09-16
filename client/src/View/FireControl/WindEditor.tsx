@@ -1,18 +1,12 @@
 ﻿import { observer } from "mobx-react-lite";
 import type FireGroup from "../../Model/FireControl/FireGroup";
 import MathUtility from "../../Model/Utility/MathUtility";
-import { NumberBind } from "../Hook/NumberBind";
+import NumberInput from "./NumberInput";
 
 export const WindEditor = observer(
 	function WindEditor( props: { fireGroup: FireGroup; } )
 	{
 		const { fireGroup } = props;
-
-		const tempAzimuthBind = NumberBind(
-			() => fireGroup.wind.Angle,
-			( n ) => ( fireGroup.wind.Angle = MathUtility.Get360Wrap( n ) ),
-			{ sanitize: ( n ) => MathUtility.Get360Wrap( n ) }
-		);
 
 		return (
 			<fieldset className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
@@ -56,11 +50,13 @@ export const WindEditor = observer(
 					<label className="grid gap-1">
 						<span className="text-[11px] uppercase tracking-wide text-zinc-400">Azimuth</span>
 						<div className="relative">
-							<input
+							<NumberInput
 								className="h-[40px] w-full rounded-md border border-zinc-700 bg-zinc-800 pr-8 pl-3 text-right text-base text-zinc-100 [font-variant-numeric:tabular-nums] shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-								type="number"
-								{ ...tempAzimuthBind }
 								step={ 1 }
+								get={ () => fireGroup.wind.Angle }
+								set={ ( n ) => ( fireGroup.wind.Angle = MathUtility.Get360Wrap( n ) ) }
+								options={ { min: 0 } }
+								aria-label="Azimuth"
 							/>
 							<span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-zinc-400 text-sm">{"\u00B0"}</span>
 						</div>
