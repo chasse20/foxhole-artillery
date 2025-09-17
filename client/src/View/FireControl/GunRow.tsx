@@ -9,7 +9,7 @@ export const GunRow = observer(
 	function GunRow( props: { gun: Gun; gunTypes: GunType[]; onRemove: () => void } )
 	{
 		const { gun, gunTypes, onRemove } = props;
-		const [ copied, setCopied ] = useState( false );
+		const [ isCopied, setIsCopied ] = useState( false );
 
 		// Copy Aim
 		const tempOnCopyAim = async () =>
@@ -17,8 +17,8 @@ export const GunRow = observer(
 			try
 			{
 				await navigator.clipboard.writeText( gun.MessageText );
-				setCopied( true );
-				setTimeout( () => setCopied( false ), 1200 );
+				setIsCopied( true );
+				setTimeout( () => setIsCopied( false ), 1200 );
 			}
 			catch ( tError )
 			{
@@ -113,7 +113,7 @@ export const GunRow = observer(
 				>
 					<legend className="px-1 text-sm text-zinc-300">Aim</legend>
 
-					{ copied && (
+					{ isCopied && (
 						<span className="absolute right-2 top-2 rounded bg-emerald-600/20 px-2 py-0.5 text-xs text-emerald-300">Copied!</span>
 					) }
 

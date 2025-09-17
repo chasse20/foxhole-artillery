@@ -25,6 +25,7 @@ export default class Tile
 	public readonly position: Point;
 	public readonly worldPosition: Point;
 	public readonly rectangle: Rectangle;
+	public readonly outline: Point[];
 	public readonly name: string;
 	public readonly key: string;
 	public readonly icons: Icon[] = [];
@@ -52,15 +53,25 @@ export default class Tile
 
 		// Rectangle
 		const tempX = this.radius * ( 3 / 2 ) * this.axial.q;
-		const tempY = this.radius * Math.sqrt( 3 ) * ( this.axial.r + this.axial.q / 2 );
 		const tempHeight = Math.sqrt( 3 ) * this.radius;
+		const tempY = tempHeight * ( this.axial.r + this.axial.q / 2 );
 		const tempHalfHeight = tempHeight / 2;
 		this.rectangle = new Rectangle( tempX - this.radius, tempY - tempHalfHeight, tempX + this.radius, tempY + tempHalfHeight );
+
+		// Outline
+		this.outline = [
+			new Point( this.position.x - this.radius / 2, this.position.y - tempHeight / 2 ),
+			new Point( this.position.x + this.radius / 2, this.position.y - tempHeight / 2 ),
+			new Point( this.position.x + this.radius, this.position.y ),
+			new Point( this.position.x + this.radius / 2, this.position.y + tempHeight / 2 ),
+			new Point( this.position.x - this.radius / 2, this.position.y + tempHeight / 2 ),
+			new Point( this.position.x - this.radius, this.position.y )
+		];
 	}
 
 	public GetPixelPosition( tNormalizedPosition: Point ): Point
 	{
-		return new Point( this.rectangle.Width * tNormalizedPosition.x, this.rectangle.Height * tNormalizedPosition.y );
+		return new Point( this.rectangle.left + this.rectangle.Width * tNormalizedPosition.x, this.rectangle.top + this.rectangle.Height * tNormalizedPosition.y );
 	}
 
 	public GetWorldPosition( tNormalizedPosition: Point ): Point

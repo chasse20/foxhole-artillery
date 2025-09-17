@@ -8,7 +8,7 @@ export const GunsEditor = observer(
 	function GunsEditor( props: { fireGroup: FireGroup; gunTypes: GunType[] } )
 	{
 		const { fireGroup, gunTypes } = props;
-		const [ copied, setCopied ] = useState( false );
+		const [ isCopied, setIsCopied ] = useState( false );
 
 		// Copy Aim
 		const tempOnCopyAim = async () =>
@@ -16,8 +16,8 @@ export const GunsEditor = observer(
 			try
 			{
 				await navigator.clipboard.writeText( fireGroup.MessageText );
-				setCopied( true );
-				setTimeout( () => setCopied( false ), 1200 );
+				setIsCopied( true );
+				setTimeout( () => setIsCopied( false ), 1200 );
 			}
 			catch ( tError )
 			{
@@ -55,7 +55,7 @@ export const GunsEditor = observer(
 						>
 							Copy All Aims
 						</button>
-						{ copied && (
+						{ isCopied && (
 							<span className="rounded bg-emerald-600/20 px-2 py-0.5 text-xs text-emerald-300">Copied!</span>
 						) }
 					</div>
