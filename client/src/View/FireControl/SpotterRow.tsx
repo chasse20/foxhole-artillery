@@ -1,6 +1,6 @@
 ﻿import { observer } from "mobx-react-lite";
 import MathUtility from "../../Model/Utility/MathUtility";
-import type PolarCoordinate from "../../Model/FireControl/PolarCoordinate";
+import type PolarCoordinate from "../../Model/PolarCoordinate";
 import NumberInput from "./NumberInput";
 
 export const SpotterRow = observer(
