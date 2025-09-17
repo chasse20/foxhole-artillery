@@ -1,6 +1,6 @@
 import { makeObservable, observable, computed, runInAction, action } from "mobx";
-import PolarCoordinate from "./PolarCoordinate";
-import type { Snapshot as PolarCoordinateSnapshot } from "./PolarCoordinate";
+import PolarCoordinate from "../PolarCoordinate";
+import type { Snapshot as PolarCoordinateSnapshot } from "../PolarCoordinate";
 import type GunType from "./GunType";
 
 export type Snapshot =

@@ -2,11 +2,11 @@ import { action, comparer, makeObservable, observable, reaction, computed, runIn
 import Gun from "./Gun";
 import type GunType from "./GunType";
 import Point from "../Point";
-import PolarCoordinate from "./PolarCoordinate";
+import PolarCoordinate from "../PolarCoordinate";
 import MathUtility from "../Utility/MathUtility";
 import Wind from "./Wind";
 import Target from "./Target";
-import type { Snapshot as PolarCoordinateSnapshot } from "./PolarCoordinate";
+import type { Snapshot as PolarCoordinateSnapshot } from "../PolarCoordinate";
 import type { Snapshot as TargetSnapshot } from "./Target";
 import type { Snapshot as WindSnapshot } from "./Wind";
 import type { Snapshot as GunSnapshot } from "./Gun";
