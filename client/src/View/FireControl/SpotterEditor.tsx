@@ -2,8 +2,8 @@
 import type FireGroup from "../../Model/FireControl/FireGroup";
 import { SpotterRow } from "./SpotterRow";
 
-export const SpottersEditor = observer(
-	function SpottersEditor( props: { fireGroup: FireGroup } )
+export const SpotterEditor = observer(
+	function SpotterEditor( props: { fireGroup: FireGroup } )
 	{
 		const { fireGroup } = props;
 

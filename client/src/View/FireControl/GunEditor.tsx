@@ -4,8 +4,8 @@ import type GunType from "../../Model/FireControl/GunType";
 import { GunRow } from "./GunRow";
 import { useState } from "react";
 
-export const GunsEditor = observer(
-	function GunsEditor( props: { fireGroup: FireGroup; gunTypes: GunType[] } )
+export const GunEditor = observer(
+	function GunEditor( props: { fireGroup: FireGroup; gunTypes: GunType[] } )
 	{
 		const { fireGroup, gunTypes } = props;
 		const [ isCopied, setIsCopied ] = useState( false );

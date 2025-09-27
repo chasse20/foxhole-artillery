@@ -79,7 +79,7 @@ export default class Tile
 		const tempX = MIN_X_M + ( MAX_X_M - MIN_X_M ) * tNormalizedPosition.x;
 		const tempY = MAX_Y_M - ( MAX_Y_M - MIN_Y_M ) * tNormalizedPosition.y;
 
-		return new Point( this.worldPosition.x + tempX, this.worldPosition.y + tempY );
+		return new Point( this.worldPosition.x + tempX, -this.worldPosition.y + tempY );
 	}
 
 	public get Snapshot(): Snapshot

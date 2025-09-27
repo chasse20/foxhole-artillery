@@ -1,10 +1,11 @@
-import { makeObservable, observable, action, reaction, comparer } from "mobx";
+import { makeObservable, observable, action, reaction, comparer, computed } from "mobx";
 import FireGroup from "./FireControl/FireGroup";
 import GunType from "./FireControl/GunType";
 import type { Snapshot as MapSnapshot } from "./Map/WorldMap";
 import type { Snapshot as FireGroupSnapshot } from "./FireControl/FireGroup";
 import WorldMap from "./Map/WorldMap";
 import API from "./API/API";
+import type Icon from "./Map/Icon";
 
 const STORAGE_KEY = "foxhole-artillery:app";
 
@@ -32,6 +33,8 @@ export default class App
 				fireGroups: observable.shallow,
 				AddFireGroup: action,
 				RemoveFireGroup: action,
+				IsSelectingMapIcon: computed,
+				OnMapIconSelect: action,
 				Dispose: action,
 				Load: action
 			}
@@ -69,6 +72,29 @@ export default class App
 	{
 		const [ tempFireGroup ] = this.fireGroups.splice( tIndex, 1 );
 		tempFireGroup?.Dispose?.();
+	}
+
+	public get IsSelectingMapIcon()
+	{
+		for ( let i = this.fireGroups.length - 1; i >= 0; --i )
+		{
+			if ( this.fireGroups[ i ].IsSelectingMapIcon )
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	public OnMapIconSelect( tIcon: Icon )
+	{
+		console.log( tIcon.worldPosition );
+
+		for ( let i = this.fireGroups.length - 1; i >= 0; --i )
+		{
+			this.fireGroups[ i ].OnMapIconSelect( tIcon );	
+		}
 	}
 
 	public Dispose()
@@ -110,7 +136,7 @@ export default class App
 			{
 				const tempFireGroupSnapshot = tempSnapshot.fireGroups[ i ];
 				const tempFireGroup = new FireGroup( tempFireGroupSnapshot.name );
-				tempFireGroup.Load( tempSnapshot.fireGroups[ i ], this.gunTypes );
+				tempFireGroup.Load( tempSnapshot.fireGroups[ i ], this.gunTypes, this.map.tiles );
 				this.fireGroups.push( tempFireGroup );
 			}
 		}

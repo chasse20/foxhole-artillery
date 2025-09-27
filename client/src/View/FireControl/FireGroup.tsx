@@ -2,9 +2,10 @@
 import type FireGroupModel from "../../Model/FireControl/FireGroup";
 import type GunType from "../../Model/FireControl/GunType";
 import { WindEditor } from "./WindEditor";
-import { SpottersEditor } from "./SpottersEditor";
-import { GunsEditor } from "./GunsEditor";
+import { SpotterEditor } from "./SpotterEditor";
+import { GunEditor } from "./GunEditor";
 import { TargetEditor } from "./TargetEditor";
+import { WorldBindEditor } from "./WorldBindEditor";
 
 export const FireGroup = observer(
 	function FireGroup( props: { model: FireGroupModel; gunTypes: GunType[]; onRemove: () => void; } )
@@ -47,8 +48,9 @@ export const FireGroup = observer(
 					<div className="grid gap-3 p-3">
 						<WindEditor fireGroup={ model } />
 						<TargetEditor fireGroup={ model } />
-						<GunsEditor fireGroup={ model } gunTypes={ gunTypes } />
-						<SpottersEditor fireGroup={ model } />
+						<GunEditor fireGroup={ model } gunTypes={ gunTypes } />
+						<SpotterEditor fireGroup={ model } />
+						<WorldBindEditor fireGroup={ model } />
 					</div>
 				) }
 			</section>

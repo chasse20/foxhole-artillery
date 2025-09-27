@@ -1,9 +1,12 @@
 ﻿import React from "react";
+import { comparer, reaction as mobxReaction } from "mobx";
+import type { IReactionDisposer } from "mobx";
 import { useApp } from "../AppContext.tsx";
 import { observer } from "mobx-react-lite";
 import { MIN_X_M, MAX_X_M, MIN_Y_M, MAX_Y_M } from "../../Model/Map/Tile.ts";
 import WorldMapCache from "./WorldMapCache.ts";
 import IconHit from "./IconHit.ts";
+import MathUtility from "../../Model/Utility/MathUtility.ts";
 
 const CACHE = new WorldMapCache();
 
@@ -187,9 +190,10 @@ export const WorldMap = observer(
 				for ( let i = tempHits.length - 1; i >= 0; --i )
 				{
 					const tempHit = tempHits[ i ];
+
 					if ( Math.abs( tempWorldX - tempHit.icon.pixelPosition.x ) <= tempHit.half && Math.abs( tempWorldY - tempHit.icon.pixelPosition.y ) <= tempHit.half )
 					{
-						console.log( "Clicked icon", tempHit.tile.key, tempHit );
+						tempApp.OnMapIconSelect( tempHit.icon );
 						break;
 					}
 				}
@@ -218,7 +222,230 @@ export const WorldMap = observer(
 			[ tempApp, isUpdating ]
 		);
 
+		// Fire Group
+		React.useEffect(
+			() =>
+			{
+				const dispose: IReactionDisposer = mobxReaction(
+					() =>
+					{
+						const temp: unknown[] = [];
+
+						for ( let i = 0; i < tempApp.fireGroups.length; ++i )
+						{
+							const g = tempApp.fireGroups[ i ];
+
+							// Base bind
+							temp.push( g.baseWorldBind.Icon );
+							temp.push( g.baseWorldBind.coordinate.Distance );
+							temp.push( g.baseWorldBind.coordinate.Angle );
+
+							// Spotter bind
+							temp.push( g.spotterWorldBind.Icon );
+							temp.push( g.spotterWorldBind.coordinate.Distance );
+							temp.push( g.spotterWorldBind.coordinate.Angle );
+
+							// Spotter chain
+							temp.push( g.spotters.length );
+							for ( let s = 0; s < g.spotters.length; ++s )
+							{
+								const leg = g.spotters[ s ];
+								temp.push( leg.Distance, leg.Angle );
+							}
+
+							// Active target
+							temp.push( g.ActiveTarget );
+							temp.push( g.ActiveTarget?.coordinate.Distance ?? 0 );
+							temp.push( g.ActiveTarget?.coordinate.Angle ?? 0 );
+
+							// Guns
+							temp.push( g.guns.length );
+							for ( let j = 0; j < g.guns.length; ++j )
+							{
+								const gun = g.guns[ j ];
+								temp.push( gun.location.Distance, gun.location.Angle, gun.Type );
+							}
+						}
+
+						return temp;
+					},
+					() =>
+					{
+						tempNeedsRenderRef.current = true;
+						QueueRender();
+					},
+					{ equals: comparer.structural }
+				);
+
+				return dispose; // <-- return the disposer function itself
+			},
+			[ tempApp ] // same app instance
+		);
+
 		// Draw
+		function WorldToPixel( tPoint: { x: number; y: number } ): { x: number; y: number }
+		{
+			// Use origin tile as the frame bridge (consistent across tiles)
+			const tempTiles = tempApp.map.tiles;
+			const tempTile = tempTiles.find( x => x.axial.q === 0 && x.axial.r === 0 ) ?? tempTiles[ 0 ];
+
+			// Pixels-per-meter from a tile
+			const tempPxPerMeterX = tempTile.rectangle.Width / ( MAX_X_M - MIN_X_M );
+			const tempPxPerMeterY = tempTile.rectangle.Height / ( MAX_Y_M - MIN_Y_M );
+
+			// Convert world (y-up) deltas to pixel (y-down)
+			const tempDX = ( tPoint.x - tempTile.worldPosition.x ) * tempPxPerMeterX;
+			const tempDY = -( tPoint.y - tempTile.worldPosition.y ) * tempPxPerMeterY;
+
+			return { x: tempTile.position.x + tempDX, y: tempTile.position.y + tempDY };
+		}
+
+		function DrawFireGroups( tContext: CanvasRenderingContext2D, tZoom: number )
+		{
+			// Styling helpers
+			const tempPx = ( n: number ) => n / Math.max( tZoom, 0.001 );
+			const tempLineRed = () => { tContext.setLineDash( [] ); tContext.strokeStyle = "rgba(239,68,68,0.95)"; tContext.lineWidth = tempPx( 2.0 ); };
+			const tempLineBlue = () => { tContext.setLineDash( [] ); tContext.strokeStyle = "rgba(59,130,246,0.95)"; tContext.lineWidth = tempPx( 2.0 ); };
+			const tempLineGreenDashed = () => { tContext.setLineDash( [ tempPx( 8 ), tempPx( 6 ) ] ); tContext.strokeStyle = "rgba(34,197,94,0.95)"; tContext.lineWidth = tempPx( 2.0 ); };
+
+			const tempDrawLine = ( ax: number, ay: number, bx: number, by: number ) =>
+			{
+				tContext.beginPath();
+				tContext.moveTo( ax, ay );
+				tContext.lineTo( bx, by );
+				tContext.stroke();
+			};
+
+			const tempDrawX = ( x: number, y: number, r: number ) =>
+			{
+				tContext.save();
+				tContext.lineWidth = tempPx( 4.0 );
+				tContext.setLineDash( [] );
+				tContext.strokeStyle = "rgba(34,197,94,0.95)"; // same green, thicker
+				tContext.beginPath();
+				tContext.moveTo( x - r, y - r );
+				tContext.lineTo( x + r, y + r );
+				tContext.moveTo( x - r, y + r );
+				tContext.lineTo( x + r, y - r );
+				tContext.stroke();
+				tContext.restore();
+			};
+
+			for ( let i = tempApp.fireGroups.length - 1; i >= 0; --i )
+			{
+				const tempGroup = tempApp.fireGroups[ i ];
+
+				// Base
+				if ( tempGroup.IsVisible && tempGroup.baseWorldBind.Icon != null )
+				{
+					const tempBaseIcon = tempGroup.baseWorldBind.Icon!;
+					const tempBasePhi = MathUtility.GetCompassToRadians( tempGroup.baseWorldBind.coordinate.Angle );
+					const tempBaseDX = tempGroup.baseWorldBind.coordinate.Distance * Math.cos( tempBasePhi );
+					const tempBaseDY = tempGroup.baseWorldBind.coordinate.Distance * Math.sin( tempBasePhi );
+					const tempBaseWorldX = tempBaseIcon.worldPosition.x + tempBaseDX;
+					const tempBaseWorldY = tempBaseIcon.worldPosition.y + tempBaseDY;
+
+					// Spotter origin
+					let tempSpotterOriginX: number;
+					let tempSpotterOriginY: number;
+
+					if ( tempGroup.spotterWorldBind.Icon != null )
+					{
+						const tempSpotterIcon = tempGroup.spotterWorldBind.Icon!;
+						const tempSpotterPhi = MathUtility.GetCompassToRadians( tempGroup.spotterWorldBind.coordinate.Angle );
+						const tempSpotterDX = tempGroup.spotterWorldBind.coordinate.Distance * Math.cos( tempSpotterPhi );
+						const tempSpotterDY = tempGroup.spotterWorldBind.coordinate.Distance * Math.sin( tempSpotterPhi );
+						tempSpotterOriginX = tempSpotterIcon.worldPosition.x + tempSpotterDX;
+						tempSpotterOriginY = tempSpotterIcon.worldPosition.y + tempSpotterDY;
+					}
+					else
+					{
+						tempSpotterOriginX = tempBaseWorldX;
+						tempSpotterOriginY = tempBaseWorldY;
+					}
+
+					// Spotter chain
+					let sx = tempSpotterOriginX;
+					let sy = tempSpotterOriginY;
+
+					for ( let j = 0; j < tempGroup.spotters.length; ++j )
+					{
+						const tempLeg = tempGroup.spotters[ j ];
+						const tempPhi = MathUtility.GetCompassToRadians( tempLeg.Angle );
+						const tempVX = tempLeg.Distance * Math.cos( tempPhi );
+						const tempVY = tempLeg.Distance * Math.sin( tempPhi ); // vector S{i+1} -> S{i}
+
+						const nx = sx - tempVX;
+						const ny = sy - tempVY;
+
+						const a = WorldToPixel( { x: sx, y: sy } );
+						const b = WorldToPixel( { x: nx, y: ny } );
+
+						tContext.save();
+						tempLineRed();
+						tContext.lineCap = "round";
+						tempDrawLine( a.x, a.y, b.x, b.y );
+						tContext.restore();
+
+						sx = nx;
+						sy = ny;
+					}
+
+					// Compute target world from last spotter
+					let tempLastSpotterX = tempSpotterOriginX;
+					let tempLastSpotterY = tempSpotterOriginY;
+
+					for ( let j = tempGroup.spotters.length - 1; j >= 0; --j )
+					{
+						const tempLeg = tempGroup.spotters[ j ];
+						const tempPhi = MathUtility.GetCompassToRadians( tempLeg.Angle );
+						const tempVX = tempLeg.Distance * Math.cos( tempPhi );
+						const tempVY = tempLeg.Distance * Math.sin( tempPhi );
+						tempLastSpotterX -= tempVX;
+						tempLastSpotterY -= tempVY;
+					}
+
+					const tempPhiTarget = MathUtility.GetCompassToRadians( tempGroup.ActiveTarget?.coordinate.Angle ?? 0 );
+					const tempTargetDistance = tempGroup.ActiveTarget?.coordinate.Distance ?? 0;
+					const tempTargetWorldX = tempLastSpotterX + tempTargetDistance * Math.cos( tempPhiTarget );
+					const tempTargetWorldY = tempLastSpotterY + tempTargetDistance * Math.sin( tempPhiTarget );
+
+					// Guns
+					for ( let j = tempGroup.guns.length - 1; j >= 0; --j )
+					{
+						const tempGun = tempGroup.guns[ j ];
+						const tempPhiGun = MathUtility.GetCompassToRadians( tempGun.location.Angle );
+						const tempGunWorldX = tempBaseWorldX + tempGun.location.Distance * Math.cos( tempPhiGun );
+						const tempGunWorldY = tempBaseWorldY + tempGun.location.Distance * Math.sin( tempPhiGun );
+
+						const pBase = WorldToPixel( { x: tempBaseWorldX, y: tempBaseWorldY } );
+						const pGun  = WorldToPixel( { x: tempGunWorldX, y: tempGunWorldY } );
+						const pTgt  = WorldToPixel( { x: tempTargetWorldX, y: tempTargetWorldY } );
+
+						// Base -> Gun
+						tContext.save();
+						tContext.lineCap = "round";
+						tempLineBlue();
+						tempDrawLine( pBase.x, pBase.y, pGun.x, pGun.y );
+						tContext.restore();
+
+						// Gun -> Target
+						tContext.save();
+						tContext.lineCap = "round";
+						tempLineGreenDashed();
+						tempDrawLine( pGun.x, pGun.y, pTgt.x, pTgt.y );
+						tContext.restore();
+					}
+
+					// Target marker
+					{
+						const pTgt = WorldToPixel( { x: tempTargetWorldX, y: tempTargetWorldY } );
+						tempDrawX( pTgt.x, pTgt.y, tempPx( 10 ) );
+					}
+				}
+			}
+		}
+
 		function Draw()
 		{
 			const tempCanvas = tempCanvasRef.current;
@@ -295,6 +522,7 @@ export const WorldMap = observer(
 				// Icons
 				tempIconHitsRef.current = [];
 				DrawIcons( tempContext, tempZoom );
+				DrawFireGroups( tempContext, tempZoom );
 			}
 		}
 
@@ -401,10 +629,17 @@ export const WorldMap = observer(
 			WebkitTapHighlightColor: "transparent"
 		};
 
+		let tempClass = "relative h-full w-full overflow-hidden bg-neutral-900 overscroll-contain";
+
+		if ( tempApp.IsSelectingMapIcon )
+		{
+			tempClass += " cursor-crosshair";
+		}
+
 		return (
 			<div
 				ref={ tempWrapRef }
-				className="relative h-full w-full overflow-hidden bg-neutral-900 overscroll-contain"
+				className={ tempClass }
 				onPointerDown={ tempOnPointerDown }
 				onPointerMove={ tempOnPointerMove }
 				onPointerUp={ tempOnPointerUp }
@@ -424,3 +659,7 @@ export const WorldMap = observer(
 		);
 	}
 );
+
+function reaction(arg0: () => unknown[], arg1: () => void, arg2: { equals: any; }) {
+    throw new Error("Function not implemented.");
+}

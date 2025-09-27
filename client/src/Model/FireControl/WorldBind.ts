@@ -1,8 +1,8 @@
 import { computed, makeObservable, observable, runInAction, action } from "mobx";
 import PolarCoordinate from "../PolarCoordinate";
 import type { Snapshot as PolarCoordinateSnapshot } from "../PolarCoordinate";
-import type Icon from "./Icon";
-import type Tile from "./Tile";
+import type Icon from "../Map/Icon";
+import type Tile from "../Map/Tile";
 
 export type Snapshot =
 {
@@ -13,15 +13,17 @@ export type Snapshot =
 
 export default class WorldBind
 {
+	protected _isSelecting: boolean = false;
 	public readonly coordinate: PolarCoordinate = new PolarCoordinate();
 	protected _icon: Icon | null = null;
 
 	constructor()
 	{
-		makeObservable<WorldBind, "_icon">(
+		makeObservable<WorldBind, "_isSelecting" | "_icon">(
 			this,
 			{
 				coordinate: observable,
+				_isSelecting: observable,
 				_icon: observable,
 				Icon: computed,
 				Load: action
@@ -36,7 +38,23 @@ export default class WorldBind
 
 	public set Icon( tValue: Icon | null )
 	{
-		 runInAction( () => { this._icon = tValue; } )
+		runInAction(
+			() =>
+			{
+				this._icon = tValue;
+				this._isSelecting = false;
+			}
+		)
+	}
+
+	public get IsSelecting()
+	{
+		return this._isSelecting;
+	}
+
+	public set IsSelecting( tValue: boolean )
+	{
+		 runInAction( () => { this._isSelecting = tValue; } )
 	}
 
 	public get Snapshot(): Snapshot

@@ -3,9 +3,7 @@ import Axial from "../Axial";
 import Rectangle from "../Rectangle";
 import Tile from "./Tile";
 import type { Snapshot as TileSnapshot } from "./Tile";
-import type { Snapshot as WorldBindSnapshot } from "./WorldBind";
 import API from "../API/API";
-import WorldBind from "./WorldBind";
 
 export type Snapshot =
 {
@@ -13,8 +11,6 @@ export type Snapshot =
 	y: number;
 	zoom: number;
 	tiles: TileSnapshot[];
-	baseWorldBind: WorldBindSnapshot;
-	spotterWorldBind: WorldBindSnapshot;
 };
 
 export default class WorldMap
@@ -23,8 +19,6 @@ export default class WorldMap
 	protected _y: number = 0;
 	protected _zoom: number = 0;
 	public readonly tiles: Tile[];
-	public readonly baseWorldBind: WorldBind = new WorldBind();
-	public readonly spotterWorldBind: WorldBind = new WorldBind();
 
 	constructor()
 	{
@@ -37,8 +31,6 @@ export default class WorldMap
 				Y: computed,
 				_zoom: observable,
 				Zoom: computed,
-				baseWorldBind: observable,
-				spotterWorldBind: observable,
 				Load: action
 			}
 		);
@@ -173,9 +165,7 @@ export default class WorldMap
 			x: this._x,
 			y: this._y,
 			zoom: this._zoom,
-			tiles: this.tiles.flatMap( x => x.Snapshot ),
-			baseWorldBind: this.baseWorldBind.Snapshot,
-			spotterWorldBind: this.spotterWorldBind.Snapshot
+			tiles: this.tiles.flatMap( x => x.Snapshot )
 		};
 	}
 
@@ -194,17 +184,6 @@ export default class WorldMap
 			{
 				this.tiles[ i ].Load( tSnapshot.tiles[ i ] );
 			}
-		}
-
-		// World Binds
-		if ( tSnapshot.baseWorldBind != null )
-		{
-			this.baseWorldBind.Load( tSnapshot.baseWorldBind, this.tiles );
-		}
-
-		if ( tSnapshot.spotterWorldBind != null )
-		{
-			this.spotterWorldBind.Load( tSnapshot.spotterWorldBind, this.tiles );
 		}
 	}
 
