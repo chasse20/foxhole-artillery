@@ -233,8 +233,7 @@ export default class FireGroup
 			const tempBasePhi = MathUtility.GetCompassToRadians( this.baseWorldBind.coordinate.Angle );
 			const tempBaseDX = this.baseWorldBind.coordinate.Distance * Math.cos( tempBasePhi );
 			const tempBaseDY = this.baseWorldBind.coordinate.Distance * Math.sin( tempBasePhi );
-
-			tempBaseWorld = new Point( tempBaseIcon.worldPosition.x + tempBaseDX, tempBaseIcon.worldPosition.y + tempBaseDY );
+			tempBaseWorld = new Point( tempBaseIcon.worldPosition.x - tempBaseDX, tempBaseIcon.worldPosition.y - tempBaseDY );
 		}
 
 		if ( this.spotterWorldBind.Icon != null )
@@ -244,7 +243,7 @@ export default class FireGroup
 			const tempSpotterDX = this.spotterWorldBind.coordinate.Distance * Math.cos( tempSpotterPhi );
 			const tempSpotterDY = this.spotterWorldBind.coordinate.Distance * Math.sin( tempSpotterPhi );
 
-			tempSpotterOrigin = new Point( tempSpotterIcon.worldPosition.x + tempSpotterDX, tempSpotterIcon.worldPosition.y + tempSpotterDY );
+			tempSpotterOrigin = new Point( tempSpotterIcon.worldPosition.x - tempSpotterDX, tempSpotterIcon.worldPosition.y - tempSpotterDY );
 		}
 		else
 		{
