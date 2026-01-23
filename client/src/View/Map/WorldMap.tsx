@@ -337,7 +337,7 @@ class WorldMapView extends React.PureComponent<{ app: App }, { isUpdating: boole
 		}
 	}
 
-	async OnUpdateClick( tEvent: React.MouseEvent ): Promise<void>
+	async OnUpdateClick( _: React.MouseEvent ): Promise<void>
 	{
 		if ( this.state.isUpdating === false )
 		{
@@ -1059,5 +1059,4 @@ class WorldMapView extends React.PureComponent<{ app: App }, { isUpdating: boole
 }
 
 const ObservedWorldMapView = observer( WorldMapView );
-ObservedWorldMapView.displayName = "WorldMapView";
 export default ObservedWorldMapView;
