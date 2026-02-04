@@ -26,7 +26,7 @@ export default class WorldMapCache
 
 	public LoadIcon( tImage: HTMLImageElement, tIcon: Icon ): HTMLCanvasElement
 	{
-		const tempKey = tIcon.type + "_" + tIcon.team;
+		const tempKey = tIcon.Type + "_" + tIcon.Team;
 		let tempIcon = this.cachedIcons.get( tempKey ) ?? null;
 
 		if ( tempIcon == null )
@@ -44,7 +44,7 @@ export default class WorldMapCache
 
 			// Color
 			tempContext.globalCompositeOperation = "multiply";
-			tempContext.fillStyle = tIcon.team == TeamType.Neutral ? "rgba(255,255,255,1)" : ( tIcon.team == TeamType.Warden ? "rgba(72,125,169,1)" : "rgba(101,135,94,1)" );
+			tempContext.fillStyle = tIcon.Team == TeamType.Neutral ? "rgba(255,255,255,1)" : ( tIcon.Team == TeamType.Warden ? "rgba(72,125,169,1)" : "rgba(101,135,94,1)" );
 			tempContext.fillRect( 0, 0, tempWidth, tempHeight );
 
 			// Alpha

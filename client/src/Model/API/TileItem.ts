@@ -1,4 +1,4 @@
-export default class Item
+export default class TileItem
 {
 	teamId: string | undefined;
 	iconType: number | undefined;

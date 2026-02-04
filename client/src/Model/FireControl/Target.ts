@@ -35,7 +35,7 @@ export default class Target
 
 	public set Name( tValue: string )
 	{
-		 runInAction( () => { this._name = tValue; } )
+		runInAction( () => { this._name = tValue; } )
 	}
 
 	public get Snapshot(): Snapshot

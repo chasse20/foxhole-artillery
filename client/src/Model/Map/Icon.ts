@@ -1,37 +1,51 @@
+import { action, computed, makeObservable, observable } from "mobx";
 import Point from "../Point";
-import type { TeamType } from "./TeamType";
+import { TeamType } from "./TeamType";
+import APITileItem from "../API/TileItem";
 import type Tile from "./Tile";
-
-export type Snapshot =
-{
-	position: Point;
-	type: number;
-	team: TeamType;
-};
 
 export default class Icon
 {
 	public readonly position: Point;
 	public readonly worldPosition: Point;
 	public readonly pixelPosition: Point;
-	public readonly type: number;
-	public readonly team: TeamType;
+	protected _type: number = 0;
+	protected _team: TeamType = TeamType.Neutral;
 
-	constructor( tTile: Tile, tPosition: Point, tType: number, tTeam: TeamType )
+	constructor( tTile: Tile, tPosition: Point )
 	{
+		makeObservable<Icon, "_type" | "_team">(
+			this,
+			{
+				_type: observable,
+				Type: computed,
+				_team: observable,
+				Team: computed,
+				Load: action
+			}
+		);
+
 		this.position = tPosition;
 		this.worldPosition = tTile.GetWorldPosition( this.position );
 		this.pixelPosition = tTile.GetPixelPosition( this.position );
-		this.type = tType;
-		this.team = tTeam;
 	}
-	
-	public get Snapshot(): Snapshot
+
+	public get Type()
 	{
-		return {
-			position: this.position,
-			type: this.type,
-			team: this.team
-		};
+		return this._type;
+	}
+
+	public get Team()
+	{
+		return this._team;
+	}
+
+	public Load( tTileItem: APITileItem | null )
+	{
+		if ( tTileItem != null )
+		{
+			this._type = tTileItem.iconType ?? 0;
+			this._team = tTileItem.teamId == null || tTileItem.teamId == "NONE" ? TeamType.Neutral : ( tTileItem.teamId == "WARDENS" ? TeamType.Warden : TeamType.Colonial );
+		}
 	}
 }

@@ -1,6 +1,8 @@
-import type Item from "./Item";
+import type TilePosition from "./TilePosition";
 
 export default class Tile
 {
-	mapItems: Item[] | undefined;
+	name: string | undefined;
+	key: string | undefined;
+	position: TilePosition | undefined;
 }

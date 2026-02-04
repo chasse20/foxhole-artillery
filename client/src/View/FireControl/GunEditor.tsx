@@ -43,7 +43,7 @@ export const GunEditor = observer(
 					<div className="flex flex-wrap items-center gap-2 pt-1">
 						<button
 							className="cursor-pointer rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-500"
-							onClick={ () => fireGroup.AddGun( gunTypes[0] ) }
+							onClick={ () => fireGroup.AddGun( gunTypes?.[0] ?? null ) }
 						>
 							+ Add gun
 						</button>

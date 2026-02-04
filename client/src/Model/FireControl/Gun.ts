@@ -52,7 +52,7 @@ export default class Gun
 
 	public set Name( tValue: string )
 	{
-		 runInAction( () => { this._name = tValue; } )
+		runInAction( () => { this._name = tValue; } )
 	}
 
 	public get Type()
@@ -62,7 +62,7 @@ export default class Gun
 
 	public set Type( tValue: GunType )
 	{
-		 runInAction( () => { this._type = tValue; } )
+		runInAction( () => { this._type = tValue; } )
 	}
 
 	public get AimRadius()

@@ -1,4 +1,6 @@
+import type GunType from "./GunType";
 import type Tile from "./Tile";
+import type DynamicTile from "./DynamicTile";
 
 export default class API
 {
@@ -29,8 +31,18 @@ export default class API
 		return null;
 	}
 
-	public async GetTileAsync( tKey: string ): Promise<Tile | null>
+	public async GetGunTypesAsync(): Promise<GunType[] | null>
 	{
-		return this.GetAsync( `/worldconquest/maps/${tKey}/dynamic/public/` );
+		return this.GetAsync( `/api/gunTypes` );
+	}
+
+	public async GetTilesAsync(): Promise<Tile[] | null>
+	{
+		return this.GetAsync( `/api/tiles` );
+	}
+
+	public async GetDynamicTilesAsync(): Promise<Map<string, DynamicTile> | null>
+	{
+		return this.GetAsync( `/api/tiles/dynamic` );
 	}
 }

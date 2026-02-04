@@ -202,6 +202,7 @@ class WorldMapView extends React.PureComponent<{ app: App }, { isUpdating: boole
 					temp.push( tempGroup.spotterWorldBind.coordinate.Distance, tempGroup.spotterWorldBind.coordinate.Angle );
 
 					temp.push( tempGroup.spotters.length );
+					
 					for ( let s = 0; s < tempGroup.spotters.length; ++s )
 					{
 						const tempLeg = tempGroup.spotters[ s ];
@@ -501,7 +502,7 @@ class WorldMapView extends React.PureComponent<{ app: App }, { isUpdating: boole
 			for ( let j = tempIcons.length - 1; j >= 0; --j )
 			{
 				const tempIcon = tempIcons[ j ];
-				const tempURL = `/icons/${tempIcon.type}.png`;
+				const tempURL = `/icons/${tempIcon.Type}.png`;
 				const tempBase = CACHE.LoadImage(
 					tempURL,
 					() =>

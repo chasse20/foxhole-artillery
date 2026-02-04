@@ -84,6 +84,8 @@ export default class WorldBind
 					if ( tempIcon.worldPosition.x == tSnapshot.iconWorldX && tempIcon.worldPosition.y == tSnapshot.iconWorldY )
 					{
 						this._icon = tempIcon;
+						i = -1;
+						break;
 					}
 				}
 			}

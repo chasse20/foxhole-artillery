@@ -122,9 +122,9 @@ export default class FireGroup
 		{
 			tempMessage += this.guns[ i ].MessageText;
 
-			if ( i > 0 )
+			if ( i > 0 && i < tempListLength - 1 )
 			{
-				tempMessage += "     ";
+				tempMessage += ", ";
 			}
 		}
 
@@ -233,6 +233,7 @@ export default class FireGroup
 			const tempBasePhi = MathUtility.GetCompassToRadians( this.baseWorldBind.coordinate.Angle );
 			const tempBaseDX = this.baseWorldBind.coordinate.Distance * Math.cos( tempBasePhi );
 			const tempBaseDY = this.baseWorldBind.coordinate.Distance * Math.sin( tempBasePhi );
+			
 			tempBaseWorld = new Point( tempBaseIcon.worldPosition.x - tempBaseDX, tempBaseIcon.worldPosition.y - tempBaseDY );
 		}
 
@@ -334,7 +335,7 @@ export default class FireGroup
 		};
 	}
 
-	public Load( tSnapshot: Snapshot, tGunTypes: GunType[], tTiles: Tile[] )
+	public Load( tSnapshot: Snapshot, tGunTypes: Map<string, GunType>, tTiles: Tile[] )
 	{
 		// General
 		this._isVisible = tSnapshot.isVisible;
@@ -374,14 +375,18 @@ export default class FireGroup
 		// Guns
 		this.guns.length = 0;
 		const tempGunsLength = tSnapshot.guns.length;
-		const tempGunTypes = new Map<string, GunType>( tGunTypes.map( x => [ x.name, x ] ) );
 
 		for ( let i = 0; i < tempGunsLength; ++i )
 		{
 			const tempSnapshot = tSnapshot.guns[ i ];
-			const tempGun = new Gun( tempSnapshot.name, tempGunTypes.get( tempSnapshot.type ) ?? tGunTypes[ 0 ] );
-			tempGun.Load( tempSnapshot );
-			this.guns.push( tempGun );
+			const tempType = tempSnapshot.type == null ? null : tGunTypes.get( tempSnapshot.type ) ?? null;
+
+			if ( tempType != null )
+			{
+				const tempGun = new Gun( tempSnapshot.name, tempType );
+				tempGun.Load( tempSnapshot );
+				this.guns.push( tempGun );
+			}
 		}
 
 		// World Binds

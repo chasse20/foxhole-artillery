@@ -2,15 +2,15 @@
 import Axial from "../Axial";
 import Rectangle from "../Rectangle";
 import Tile from "./Tile";
-import type { Snapshot as TileSnapshot } from "./Tile";
 import API from "../API/API";
+import APITile from "../API/Tile";
+import APIDynamicTile from "../API/DynamicTile";
 
 export type Snapshot =
 {
 	x: number;
 	y: number;
 	zoom: number;
-	tiles: TileSnapshot[];
 };
 
 export default class WorldMap
@@ -18,7 +18,7 @@ export default class WorldMap
 	protected _x: number = 0;
 	protected _y: number = 0;
 	protected _zoom: number = 0;
-	public readonly tiles: Tile[];
+	public readonly tiles: Tile[] = [];
 
 	constructor()
 	{
@@ -34,64 +34,6 @@ export default class WorldMap
 				Load: action
 			}
 		);
-
-		// Tiles
-		const tempRadius = 512;
-
-		this.tiles =
-		[
-			new Tile( "Oarbreak Isles", "OarbreakerHex", new Axial( -4, 1 ), tempRadius ),
-			new Tile( "Fisherman's Row", "FishermansRowHex", new Axial( -4, 2 ), tempRadius ),
-			new Tile( "Stema Landing", "StemaLandingHex", new Axial( -4, 3 ), tempRadius ),
-
-			new Tile( "Nevish Line", "NevishLineHex", new Axial( -3, 0 ), tempRadius ),
-			new Tile( "Farranac Coast", "FarranacCoastHex", new Axial( -3, 1 ), tempRadius ),
-			new Tile( "Westgate", "WestgateHex", new Axial( -3, 2 ), tempRadius ),
-			new Tile( "Origin", "OriginHex", new Axial( -3, 3 ), tempRadius ),
-
-			new Tile( "Callum's Cape", "CallumsCapeHex", new Axial( -2, -1 ), tempRadius ),
-			new Tile( "Stonecradle", "StonecradleHex", new Axial( -2, 0 ), tempRadius ),
-			new Tile( "King's Cage", "KingsCageHex", new Axial( -2, 1 ), tempRadius ),
-			new Tile( "Sableport", "SableportHex", new Axial( -2, 2 ), tempRadius ),
-			new Tile( "Ash Fields", "AshFieldsHex", new Axial( -2, 3 ), tempRadius ),
-
-			new Tile( "Speaking Woods", "SpeakingWoodsHex", new Axial( -1, -2  ), tempRadius ),
-			new Tile( "The Moors", "MooringCountyHex", new Axial( -1, -1 ), tempRadius ),
-			new Tile( "The Linn of Mercy", "LinnMercyHex", new Axial( -1, 0 ), tempRadius ),
-			new Tile( "Loch Mor", "LochMorHex", new Axial( -1, 1 ), tempRadius ),
-			new Tile( "The Heartlands", "HeartlandsHex", new Axial( -1, 2 ), tempRadius ),
-			new Tile( "Red River", "RedRiverHex", new Axial( -1, 3 ), tempRadius ),
-
-			new Tile( "Basin Sionnach", "BasinSionnachHex", new Axial( 0, -3 ), tempRadius ),
-			new Tile( "Reaching Trail", "ReachingTrailHex", new Axial( 0, -2 ), tempRadius ),
-			new Tile( "Callahan's Passage", "CallahansPassageHex", new Axial( 0, -1 ), tempRadius ),
-			new Tile( "Deadlands", "DeadLandsHex", new Axial( 0, 0 ), tempRadius ),
-			new Tile( "Umbral Wildwood", "UmbralWildwoodHex", new Axial( 0, 1 ), tempRadius ),
-			new Tile( "Great March", "GreatMarchHex", new Axial( 0, 2 ), tempRadius ),
-			new Tile( "Kalokai", "KalokaiHex", new Axial( 0, 3 ), tempRadius ),
-
-			new Tile( "Howl County", "HowlCountyHex", new Axial( 1, -3 ), tempRadius ),
-			new Tile( "Viper Pit", "ViperPitHex", new Axial( 1, -2 ), tempRadius ),
-			new Tile( "Marban Hollow", "MarbanHollow", new Axial( 1, -1 ), tempRadius ),
-			new Tile( "The Drowned Vale", "DrownedValeHex", new Axial( 1, 0 ), tempRadius ),
-			new Tile( "Shackled Chasm", "ShackledChasmHex", new Axial( 1, 1 ), tempRadius ),
-			new Tile( "Acrithia", "AcrithiaHex", new Axial( 1, 2 ), tempRadius ),
-
-			new Tile( "Clanshead Valley", "ClansheadValleyHex", new Axial( 2, -3 ), tempRadius ),
-			new Tile( "Weathered Expanse", "WeatheredExpanseHex", new Axial( 2, -2 ), tempRadius ),
-			new Tile( "The Clahstra", "ClahstraHex", new Axial( 2, -1 ), tempRadius ),
-			new Tile( "Allod's Bight", "AllodsBightHex", new Axial( 2, 0 ), tempRadius ),
-			new Tile( "Terminus", "TerminusHex", new Axial( 2, 1 ), tempRadius ),
-
-			new Tile( "Morgen's Crossing", "MorgensCrossingHex", new Axial( 3, -3 ), tempRadius ),
-			new Tile( "Stlican Shelf", "StlicanShelfHex", new Axial( 3, -2 ), tempRadius ),
-			new Tile( "Endless Shore", "EndlessShoreHex", new Axial( 3, -1 ), tempRadius ),
-			new Tile( "Reaver's Pass", "ReaversPassHex", new Axial( 3, 0 ), tempRadius ),
-
-			new Tile( "Godcrofts", "GodcroftsHex", new Axial( 4, -3 ), tempRadius ),
-			new Tile( "Tempest Island", "TempestIslandHex", new Axial( 4, -2 ), tempRadius ),
-			new Tile( "The Fingers", "TheFingersHex", new Axial( 4, -1 ), tempRadius )
-		];
 	}
 
 	public get X()
@@ -164,38 +106,48 @@ export default class WorldMap
 		return {
 			x: this._x,
 			y: this._y,
-			zoom: this._zoom,
-			tiles: this.tiles.flatMap( x => x.Snapshot )
+			zoom: this._zoom
 		};
 	}
 
-	public Load( tSnapshot: Snapshot )
+	public Load( tSnapshot: Snapshot | null, tTiles: APITile[] | null, tDynamicTiles: Map<string, APIDynamicTile> | null )
 	{
-		this._x = tSnapshot.x;
-		this._y = tSnapshot.y;
-		this._zoom = tSnapshot.zoom;
+		// Snapshot
+		if ( tSnapshot != null )
+		{
+			this._x = tSnapshot.x;
+			this._y = tSnapshot.y;
+			this._zoom = tSnapshot.zoom;
+		}
 
 		// Tiles
-		if ( tSnapshot.tiles != null )
+		if ( tTiles != null )
 		{
-			const tempListLength = tSnapshot.tiles.length;
+			const tempRadius = 512;
+			const tempTilesLength = tTiles.length;
 
-			for ( let i = 0; i < tempListLength; ++i )
+			for ( let i = 0; i < tempTilesLength; ++i )
 			{
-				this.tiles[ i ].Load( tSnapshot.tiles[ i ] );
+				const tempAPITile = tTiles[ i ];
+				const tempTile = new Tile( tempAPITile.name ?? "", tempAPITile.key ?? "", new Axial( tempAPITile.position?.q ?? 0, tempAPITile.position?.r ?? 0 ), tempRadius );
+				tempTile.Load( tDynamicTiles?.get( tempTile.key ) ?? null );
+				
+				this.tiles.push( tempTile );
 			}
 		}
 	}
 
 	public async UpdateAsync( tAPI: API )
 	{
-		const tempTileTasks = [];
+		const tempDynamicTiles = await tAPI.GetDynamicTilesAsync();
 
-		for ( let i = this.tiles.length - 1; i >= 0; --i )
+		if ( tempDynamicTiles != null )
 		{
-			tempTileTasks.push( this.tiles[ i ].UpdateAsync( tAPI ) );
+			for ( let i = this.tiles.length - 1; i >= 0; --i )
+			{
+				const tempTile = this.tiles[ i ];
+				this.tiles[ i ].Update( tempDynamicTiles?.get( tempTile.key ) ?? null );
+			}
 		}
-
-		await Promise.all( tempTileTasks );
 	}
 }

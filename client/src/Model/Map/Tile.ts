@@ -2,21 +2,13 @@ import { action, makeObservable, observable } from "mobx";
 import type Axial from "../Axial";
 import Point from "../Point";
 import Rectangle from "../Rectangle";
-import type { Snapshot as IconSnapshot } from "./Icon";
 import Icon from "./Icon";
-import API from "../API/API";
-import TileData from "../API/Tile";
-import { TeamType } from "./TeamType";
+import APIDynamicTile from "../API/DynamicTile";
 
 export const MIN_X_M = -1091.99999997;
 export const MAX_X_M = 1091.99999997;
 export const MIN_Y_M = -944.999999958091;
 export const MAX_Y_M = 944.999999958091;
-
-export type Snapshot =
-{
-	icons: IconSnapshot[];
-};
 
 export default class Tile
 {
@@ -37,7 +29,8 @@ export default class Tile
 			{
 				HandleUpdate: action,
 				icons: observable.shallow,
-				Load: action
+				Load: action,
+				Update: action
 			}
 		);
 
@@ -82,45 +75,62 @@ export default class Tile
 		return new Point( this.worldPosition.x + tempX, -this.worldPosition.y + tempY );
 	}
 
-	public get Snapshot(): Snapshot
+	public Load( tDynamicTile: APIDynamicTile | null )
 	{
-		return {
-			icons: this.icons.flatMap( x => x.Snapshot )
-		};
-	}
+		this.icons.length = 0; // this won't immediately reflect world binds, assumed first load
 
-	public Load( tSnapshot: Snapshot )
-	{
-		// Icons
-		this.icons.length = 0;
-		const tempListLength = tSnapshot.icons.length;
-
-		for ( let i = 0; i < tempListLength; ++i )
+		if ( tDynamicTile?.mapItems != null )
 		{
-			const tempSnapshot = tSnapshot.icons[ i ];
-			const tempIcon = new Icon( this, tempSnapshot.position, tempSnapshot.type, tempSnapshot.team );
-			this.icons.push( tempIcon );
+			for ( let i = tDynamicTile.mapItems.length - 1; i >= 0; --i )
+			{
+				const tempMapItem = tDynamicTile.mapItems[ i ];
+				const tempIcon = new Icon( this, new Point( tempMapItem.x ?? 0, tempMapItem.y ?? 0 ) );
+				tempIcon.Load( tempMapItem );
+
+				this.icons.push( tempIcon );
+			}
 		}
 	}
 
-	public async UpdateAsync( tAPI: API )
+	public Update( tDynamicTile: APIDynamicTile | null )
 	{
-		this.HandleUpdate( await tAPI.GetTileAsync( this.key ) );
-	}
-
-	protected HandleUpdate( tData: TileData | null )
-	{
-		if ( tData != null && tData.mapItems != null )
+		if ( tDynamicTile?.mapItems != null && this.icons.length > 0 )
 		{
-			this.icons.length = 0;
-			const tempListLength = tData.mapItems.length;
-
-			for ( let i = 0; i < tempListLength; ++i )
+			const tempIcons = new Map<string, Icon>( this.icons.map( x => [ `${x.position.x}${x.position.y}`, x ] ) );
+		
+			// Add new or update
+			for ( const tempMapItem of tDynamicTile.mapItems )
 			{
-				const tempIconData = tData.mapItems[ i ];
-				const tempTeam = tempIconData.teamId == null || tempIconData.teamId == "NONE" ? TeamType.Neutral : ( tempIconData.teamId == "WARDENS" ? TeamType.Warden : TeamType.Colonial );
-				const tempIcon = new Icon( this, new Point( tempIconData.x ?? 0, tempIconData.y ?? 0 ), tempIconData.iconType ?? 0, tempTeam )
-				this.icons.push( tempIcon );
+				const tempKey = `${tempMapItem.x ?? 0}${tempMapItem.y ?? 0}`;
+				const tempIcon = tempIcons.get( tempKey );
+
+				// New
+				if ( tempIcon == null )
+				{
+					const tempNewIcon = new Icon( this, new Point( tempMapItem.x ?? 0, tempMapItem.y ?? 0 ) );
+					tempNewIcon.Load( tempMapItem );
+
+					this.icons.push( tempNewIcon );
+				}
+				// Update
+				else
+				{
+					tempIcon.Load( tempMapItem );
+				}
+
+				tempIcons.delete( tempKey );
+			}
+
+			// Delete remaining
+			for ( let i = this.icons.length - 1; i >= 0; --i )
+			{
+				const tempIcon = this.icons[ i ];
+				const tempKey = `${tempIcon.position.x}${tempIcon.position.y}`;
+
+				if ( tempIcons.has( tempKey ) )
+				{
+					this.icons.splice( i, 1 );
+				}
 			}
 		}
 	}
