@@ -1,9 +1,26 @@
 services:
-  app:
+  server:
     build:
       context: .
       dockerfile: Dockerfile
+      target: server-dev
     ports:
-      - "3000:8080"
+      - "8080:8080"
     environment:
       NODE_ENV: development
+      PORT: 8080
+    volumes:
+      - ./server:/app/server
+      - /app/server/node_modules
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: client-dev
+    ports:
+      - "3000:5173"
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./client:/app/client
+      - /app/client/node_modules

@@ -24,10 +24,9 @@ export default class Tile
 
 	constructor( tName: string, tKey: string, tPosition: Axial, tRadius: number )
 	{
-		makeObservable<Tile, "HandleUpdate">(
+		makeObservable<Tile>(
 			this,
 			{
-				HandleUpdate: action,
 				icons: observable.shallow,
 				Load: action,
 				Update: action

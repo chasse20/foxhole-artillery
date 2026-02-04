@@ -60,8 +60,8 @@ class WorldMapView extends React.PureComponent<{ app: App }, { isUpdating: boole
 
 		this.DrawCircle = this.DrawCircle.bind( this );
 		this.DrawDonut = this.DrawDonut.bind( this );
-		this.WorldToPixel = this.WorldToPixel.bind( this );
-		this.PxPerMeter = this.PxPerMeter.bind( this );
+		this.GetWorldToPixel = this.GetWorldToPixel.bind( this );
+		this.GetPixelsPerMeter = this.GetPixelsPerMeter.bind( this );
 		this.CreateReaction = this.CreateReaction.bind( this );
 	}
 
@@ -527,7 +527,7 @@ class WorldMapView extends React.PureComponent<{ app: App }, { isUpdating: boole
 	DrawFireGroups( tContext: CanvasRenderingContext2D, tZoom: number ): void
 	{
 		const tempApp = this._app;
-		const tempPxPerMeter = this.PxPerMeter();
+		const tempPxPerMeter = this.GetPixelsPerMeter();
 		const tempZoomSafe = Math.max( tZoom, 0.001 );
 
 		for ( let i = tempApp.fireGroups.length - 1; i >= 0; --i )
@@ -574,8 +574,8 @@ class WorldMapView extends React.PureComponent<{ app: App }, { isUpdating: boole
 					const tempNx = tempSx - tempVX;
 					const tempNy = tempSy - tempVY;
 
-					const tempA = this.WorldToPixel( { x: tempSx, y: tempSy } );
-					const tempB = this.WorldToPixel( { x: tempNx, y: tempNy } );
+					const tempA = this.GetWorldToPixel( { x: tempSx, y: tempSy } );
+					const tempB = this.GetWorldToPixel( { x: tempNx, y: tempNy } );
 
 					tContext.save();
 					tContext.setLineDash( [] );
@@ -736,8 +736,8 @@ class WorldMapView extends React.PureComponent<{ app: App }, { isUpdating: boole
 		const tempGunWorldY = tBaseWorldY + tGun.location.Distance * Math.sin( tempPhiGun );
 
 		// Pixels for base and gun
-		const tempPBase = this.WorldToPixel( { x: tBaseWorldX, y: tBaseWorldY } );
-		const tempPGun  = this.WorldToPixel( { x: tempGunWorldX,  y: tempGunWorldY } );
+		const tempPBase = this.GetWorldToPixel( { x: tBaseWorldX, y: tBaseWorldY } );
+		const tempPGun  = this.GetWorldToPixel( { x: tempGunWorldX,  y: tempGunWorldY } );
 
 		// Wind
 		const tempPhiWind = MathUtility.GetCompassToRadians( tGroup.wind.Angle );
@@ -849,7 +849,7 @@ class WorldMapView extends React.PureComponent<{ app: App }, { isUpdating: boole
 		}
 
 		// Pixels for landing
-		const tempPLand = this.WorldToPixel( { x: tempLandWorldX, y: tempLandWorldY } );
+		const tempPLand = this.GetWorldToPixel( { x: tempLandWorldX, y: tempLandWorldY } );
 
 		// Dashed GREEN line Gun -> LANDING (clamped)
 		tContext.save();
@@ -914,7 +914,7 @@ class WorldMapView extends React.PureComponent<{ app: App }, { isUpdating: boole
 	): void
 	{
 		const tempZoomSafe = Math.max( tZoom, 0.001 );
-		const tempP = this.WorldToPixel( { x: tWorldX, y: tWorldY } );
+		const tempP = this.GetWorldToPixel( { x: tWorldX, y: tWorldY } );
 
 		tContext.save();
 		tContext.lineCap = "round";
@@ -991,7 +991,7 @@ class WorldMapView extends React.PureComponent<{ app: App }, { isUpdating: boole
 		tContext.restore();
 	}
 
-	WorldToPixel( tPoint: { x: number; y: number } ): { x: number; y: number }
+	GetWorldToPixel( tPoint: { x: number; y: number } ): { x: number; y: number }
 	{
 		const tempTiles = this._app.map.tiles;
 		const tempTile = tempTiles.find( x => x.axial.q === 0 && x.axial.r === 0 ) ?? tempTiles[ 0 ];
@@ -1005,15 +1005,21 @@ class WorldMapView extends React.PureComponent<{ app: App }, { isUpdating: boole
 		return { x: tempTile.position.x + tempDX, y: tempTile.position.y + tempDY };
 	}
 
-	PxPerMeter(): number
+	GetPixelsPerMeter(): number
 	{
 		const tempTiles = this._app.map.tiles;
-		const tempTile = tempTiles.find( x => x.axial.q === 0 && x.axial.r === 0 ) ?? tempTiles[ 0 ];
 
-		const tempPxPerMeterX = tempTile.rectangle.Width / ( MAX_X_M - MIN_X_M );
-		const tempPxPerMeterY = tempTile.rectangle.Height / ( MAX_Y_M - MIN_Y_M );
+		if ( tempTiles != null && tempTiles.length > 0 )
+		{
+			const tempTile = tempTiles.find( x => x.axial.q === 0 && x.axial.r === 0 ) ?? tempTiles[ 0 ];
 
-		return ( tempPxPerMeterX + tempPxPerMeterY ) * 0.5;
+			const tempPxPerMeterX = tempTile.rectangle.Width / ( MAX_X_M - MIN_X_M );
+			const tempPxPerMeterY = tempTile.rectangle.Height / ( MAX_Y_M - MIN_Y_M );
+
+			return ( tempPxPerMeterX + tempPxPerMeterY ) * 0.5;
+		}
+
+		return 0;
 	}
 
 	render(): React.ReactNode

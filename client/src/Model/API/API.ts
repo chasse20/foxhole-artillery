@@ -41,8 +41,14 @@ export default class API
 		return this.GetAsync( `/api/tiles` );
 	}
 
+	private IsDynamicTileOkay( tDynamicTile: DynamicTile )
+	{
+		return tDynamicTile && typeof tDynamicTile === "object" && !( "error" in tDynamicTile );
+	}
+
 	public async GetDynamicTilesAsync(): Promise<Map<string, DynamicTile> | null>
 	{
-		return this.GetAsync( `/api/tiles/dynamic` );
+		const tempRaw = this.GetAsync( `/api/tiles/dynamic` );
+		return tempRaw == null ? null : new Map<string, DynamicTile>( Object.entries( tempRaw ).filter( ( [ _, value ] ) => this.IsDynamicTileOkay( value ) ) as [ string, DynamicTile ][] );
 	}
 }

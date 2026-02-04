@@ -5,7 +5,7 @@ const path = require( "path" );
 // Environment
 const PORT = process.env.PORT || 80;
 
-const TILES_DYNAMIC_CACHE_DELAY = 1200000; // two minutes
+const TILES_DYNAMIC_CACHE_DELAY = 120000; // two minutes
 
 let TILES_DYNAMIC_CACHE =
 {
@@ -311,6 +311,6 @@ APP.listen(
 	"0.0.0.0",
 	() =>
 	{
-		console.log( `Server running on http://localhost:${PORT}` );
+		console.log( `Server running on http://0.0.0.0:${PORT}` );
 	}
 );
