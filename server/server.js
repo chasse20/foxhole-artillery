@@ -7,10 +7,14 @@ const PORT = process.env.PORT || 80;
 
 const TILES_DYNAMIC_CACHE_DELAY = 120000; // two minutes
 
+
 let TILES_DYNAMIC_CACHE =
 {
 	fetchedAt: 0,
-	data: null
+	expiresAt: 0,
+	data: null,
+	etags: {}, // { [tileKey]: "etag" }
+	expiresByKey: {} // { [tileKey]: epochMs }
 };
 
 let TILES_DYNAMIC_IN_FLIGHT = null; // Promise when in progress
@@ -161,21 +165,58 @@ APP.use(
 	}
 );
 
-// SPA
+// API
+function GetUpstreamExpiresAt( tHeaders, tNowMs )
+{
+	let tempExpiresAt = 0;
+	const tempCC = tHeaders.get( "cache-control" );
+
+	if ( tempCC )
+	{
+		const tempIsMatch = tempCC.match( /max-age=(\d+)/i );
+
+		if ( tempIsMatch )
+		{
+			tempExpiresAt = tNowMs + ( parseInt( tempIsMatch[ 1 ], 10 ) * 1000 );
+		}
+	}
+
+	if ( tempExpiresAt == 0 )
+	{
+		const tempIsExpires = tHeaders.get( "expires" );
+		
+		if ( tempIsExpires )
+		{
+			const tempParsed = Date.parse( tempIsExpires );
+
+			if ( Number.isFinite( tempParsed ) )
+			{
+				tempExpiresAt = tempParsed;
+			}
+		}
+	}
+
+	if ( tempExpiresAt == 0 )
+	{
+		tempExpiresAt = tNowMs + TILES_DYNAMIC_CACHE_DELAY;
+	}
+
+	return tempExpiresAt;
+}
+
 APP.get(
 	"/api/tiles/dynamic",
 	async ( _, tResponse ) =>
 	{
 		try
 		{
-			const tempNow = Date.now();
-			const tempAge = tempNow - TILES_DYNAMIC_CACHE.fetchedAt;
-			const tempIsFresh = TILES_DYNAMIC_CACHE.data && tempAge < TILES_DYNAMIC_CACHE_DELAY;
+			let tempNow = Date.now();
+			const tempIsFresh = TILES_DYNAMIC_CACHE.data && tempNow < ( TILES_DYNAMIC_CACHE.expiresAt || 0 );
 
 			// Return cache
 			if ( tempIsFresh )
 			{
-				const tempSeconds = Math.max( 0, Math.floor( ( TILES_DYNAMIC_CACHE_DELAY - tempAge ) / 1000 ) );
+				const tempSeconds = Math.max( 0, Math.floor( ( ( TILES_DYNAMIC_CACHE.expiresAt || tempNow ) - tempNow ) / 1000 ) );
 
 				tResponse.setHeader( "Cache-Control", `private, max-age=${tempSeconds}` );
 				tResponse.setHeader( "X-Cache", "HIT" );
@@ -198,72 +239,113 @@ APP.get(
 			(
 				async () =>
 				{
+					const tempNowInner = Date.now();
+					let tempMinExpiresAt = 0;
+
 					const tempEntries = await Promise.all(
 						TILES.map(
 							async ( tTile ) =>
 							{
 								try
 								{
-									const tempUpstream = await fetch(
-										`https://war-service-live.foxholeservices.com/api/worldconquest/maps/${encodeURIComponent( tTile.key )}/dynamic/public/`,
-										{
-											headers:
-											{
-												"Accept": "application/json"
-											}
-										}
-									);
+									const tempPreviousEtag = TILES_DYNAMIC_CACHE.etags && TILES_DYNAMIC_CACHE.etags[ tTile.key ] ? TILES_DYNAMIC_CACHE.etags[ tTile.key ] : null;
+									const tempHeaders = { "Accept": "application/json" };
 
-									if ( tempUpstream.ok )
+									if ( tempPreviousEtag )
 									{
+										tempHeaders[ "If-None-Match" ] = tempPreviousEtag;
+									}
+
+									const tempURL = `https://war-service-live.foxholeservices.com/api/worldconquest/maps/${encodeURIComponent( tTile.key )}/dynamic/public/`;
+									const tempUpstream = await fetch( tempURL, { headers: tempHeaders } );
+
+									// 304: use cached tile value if we have it
+									if ( tempUpstream.status === 304 )
+									{
+										if ( TILES_DYNAMIC_CACHE.data && Object.prototype.hasOwnProperty.call( TILES_DYNAMIC_CACHE.data, tTile.key ) )
+										{
+											const tempCached = TILES_DYNAMIC_CACHE.data[ tTile.key ];
+											const tempTileExpiresAt = GetUpstreamExpiresAt( tempUpstream.headers, tempNowInner );
+
+											if ( !tempMinExpiresAt || tempTileExpiresAt < tempMinExpiresAt )
+											{
+												tempMinExpiresAt = tempTileExpiresAt;
+											}
+
+											TILES_DYNAMIC_CACHE.expiresByKey[ tTile.key ] = tempTileExpiresAt;
+
+											return [ tTile.key, tempCached ];
+										}
+
+										return null;
+									}
+									else if ( tempUpstream.ok )
+									{
+										const tempEtag = tempUpstream.headers.get( "etag" );
+
+										if ( tempEtag )
+										{
+											TILES_DYNAMIC_CACHE.etags[ tTile.key ] = tempEtag;
+										}
+
 										const tempJSON = await tempUpstream.json();
+										const tempTileExpiresAt = GetUpstreamExpiresAt( tempUpstream.headers, tempNowInner );
+
+										TILES_DYNAMIC_CACHE.expiresByKey[ tTile.key ] = tempTileExpiresAt;
+
+										if ( !tempMinExpiresAt || tempTileExpiresAt < tempMinExpiresAt )
+										{
+											tempMinExpiresAt = tempTileExpiresAt;
+										}
+
 										return [ tTile.key, tempJSON ];
 									}
-									else
-									{
-										const tempText = await tempUpstream.text().catch( () => "" );
+								}
+								catch ( _ ) { }
 
-										return [
-											tTile.key,
-											{
-												error: "Upstream request failed",
-												upstreamStatus: tempUpstream.status,
-												upstreamBody: tempText.slice( 0, 500 )
-											}
-										];
-									}
-								}
-								catch ( tError )
-								{
-									return [
-										tTile.key,
-										{
-											error: "Upstream request failed",
-											upstreamStatus: 0,
-											upstreamBody: String( tError && tError.message ? tError.message : tError ).slice( 0, 500 )
-										}
-									];
-								}
+								return null;
 							}
 						)
 					);
 
-					const tempResult = Object.fromEntries( tempEntries );
+					const tempFilteredEntries = tempEntries.filter( ( tEntry ) => Array.isArray( tEntry ) );
+					const tempResult = Object.fromEntries( tempFilteredEntries );
 
-					TILES_DYNAMIC_CACHE =
+					// Keep old cache
+					if ( tempFilteredEntries.length > 0 )
 					{
-						fetchedAt: Date.now(),
-						data: tempResult
-					};
+						const tempFallbackExpiresAt = tempNowInner + TILES_DYNAMIC_CACHE_DELAY;
+						const tempExpiresAt = tempMinExpiresAt || tempFallbackExpiresAt;
 
-					return tempResult;
+						TILES_DYNAMIC_CACHE =
+						{
+							fetchedAt: tempNowInner,
+							expiresAt: tempExpiresAt,
+							data: tempResult,
+							etags: TILES_DYNAMIC_CACHE.etags || {},
+							expiresByKey: TILES_DYNAMIC_CACHE.expiresByKey || {}
+						};
+					}
+
+					return TILES_DYNAMIC_CACHE.data || tempResult;
 				}
 			)();
 
-			const tempResult = await TILES_DYNAMIC_IN_FLIGHT;
-			TILES_DYNAMIC_IN_FLIGHT = null;
+			let tempResult = null;
 
-			tResponse.setHeader( "Cache-Control", "private, max-age=0" );
+			try
+			{
+				tempResult = await TILES_DYNAMIC_IN_FLIGHT;
+			}
+			finally
+			{
+				TILES_DYNAMIC_IN_FLIGHT = null;
+			}
+
+			tempNow = Date.now();
+			const tempSeconds = TILES_DYNAMIC_CACHE.expiresAt && tempNow < TILES_DYNAMIC_CACHE.expiresAt ? Math.max( 0, Math.floor( ( TILES_DYNAMIC_CACHE.expiresAt - tempNow ) / 1000 ) ) : 0;
+
+			tResponse.setHeader( "Cache-Control", `private, max-age=${tempSeconds}` );
 			tResponse.setHeader( "X-Cache", "MISS" );
 
 			return tResponse.json( tempResult );
@@ -273,9 +355,9 @@ APP.get(
 			console.error( "Error in /api/tiles/dynamic:", tError );
 
 			TILES_DYNAMIC_IN_FLIGHT = null;
-
-			return tResponse.status( 500 ).json( { error: "Internal server error" } );
 		}
+
+		return tResponse.status( 500 ).json( { error: "Internal server error" } );
 	}
 );
 
@@ -295,6 +377,7 @@ APP.get(
 	}
 );
 
+// SPA
 APP.use( express.static( path.join( __dirname, "dist" ) ) );
 
 APP.get(
