@@ -92,8 +92,18 @@ export default class App
 			// Map
 			this.map.Load( tempSnapshot?.map ?? null, tTiles, tDynamicTiles );
 
-			// Fire Groups
-			if ( tempSnapshot != null )
+			// Fire Groups (give some default starters if no snapshot)
+			if ( tempSnapshot == null )
+			{
+				const tempFireGroup = new FireGroup( "Fire Group 1" );
+				tempFireGroup.wind.Strength = 3;
+				tempFireGroup.AddGun( this.gunTypes[ 1 ] );
+				tempFireGroup.guns[ 0 ].Name = "Battery A";
+				tempFireGroup.AddTarget();
+				tempFireGroup.targets[ 0 ].Name = "Bridge";
+				this.fireGroups.push( tempFireGroup );
+			}
+			else
 			{
 				this.fireGroups.length = 0;
 				const tempFireGroupsLength = tempSnapshot.fireGroups.length;

@@ -21,7 +21,14 @@ let TILES_DYNAMIC_IN_FLIGHT = null; // Promise when in progress
 
 const TILES =
 [
-	{ name: "Oarbreak Isles", key: "OarbreakerHex", position: { q: -4, r: 1 } },
+	{ name: "Olavi's Wake", key: "OlavisWakeHex", position: { q: -6, r: 2 } },
+
+	{ name: "Pari Peak", key: "PariPeakHex", position: { q: -5, r: 1 } },
+	{ name: "Palantine Berm", key: "PalantineBermHex", position: { q: -5, r: 2 } },
+	{ name: "Oarbreaker Isles", key: "OarbreakerIslesHex", position: { q: -5, r: 3 } },
+
+	{ name: "Kuura Strand", key: "KuuraStrandHex", position: { q: -4, r: 0 } },
+	{ name: "The Gutter", key: "TheGutterHex", position: { q: -4, r: 1 } },
 	{ name: "Fisherman's Row", key: "FishermansRowHex", position: { q: -4, r: 2 } },
 	{ name: "Stema Landing", key: "StemaLandingHex", position: { q: -4, r: 3 } },
 
@@ -53,7 +60,7 @@ const TILES =
 
 	{ name: "Howl County", key: "HowlCountyHex", position: { q: 1, r: -3 } },
 	{ name: "Viper Pit", key: "ViperPitHex", position: { q: 1, r: -2 } },
-	{ name: "Marban Hollow", key: "MarbanHollow", position: { q: 1, r: -1 } },
+	{ name: "Marban Hollow", key: "MarbanHollowHex", position: { q: 1, r: -1 } },
 	{ name: "The Drowned Vale", key: "DrownedValeHex", position: { q: 1, r: 0 } },
 	{ name: "Shackled Chasm", key: "ShackledChasmHex", position: { q: 1, r: 1 } },
 	{ name: "Acrithia", key: "AcrithiaHex", position: { q: 1, r: 2 } },
@@ -71,7 +78,14 @@ const TILES =
 
 	{ name: "Godcrofts", key: "GodcroftsHex", position: { q: 4, r: -3 } },
 	{ name: "Tempest Island", key: "TempestIslandHex", position: { q: 4, r: -2 } },
-	{ name: "The Fingers", key: "TheFingersHex", position: { q: 4, r: -1 } }
+	{ name: "Wresta", key: "WrestaHex", position: { q: 4, r: -1 } },
+	{ name: "Onyx", key: "OnyxHex", position: { q: 4, r: 0 } },
+
+	{ name: "Lykos Isle", key: "LykosIsleHex", position: { q: 5, r: -3 } },
+	{ name: "The Fingers", key: "TheFingersHex", position: { q: 5, r: -2 } },
+	{ name: "Tyrant Foothills", key: "TyrantFoothillsHex", position: { q: 5, r: -1 } },
+
+	{ name: "Piper's Enclave", key: "PipersEnclaveHex", position: { q: 6, r: -2 } },
 ];
 
 const GUN_TYPES =
