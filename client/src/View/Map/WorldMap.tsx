@@ -13,7 +13,7 @@ const CACHE = new WorldMapCache();
 const THEME =
 {
 	spotterStroke: "rgba(248, 113, 113, 0.9)",
-	baseGunStroke: "rgba(96, 165, 250, 0.9)",
+	baseGunStroke: "rgb(48, 106, 221)",
 	toTargetStroke: "rgba(74, 222, 128, 0.9)",
 	targetRing: "rgba(134, 239, 172, 0.95)",
 	targetFill: "rgba(134, 239, 172, 0.30)",
