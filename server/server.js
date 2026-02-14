@@ -32,10 +32,10 @@ const TILES =
 
 	{ name: "Pari Peak", key: "PariPeakHex", position: { q: -5, r: 1 } },
 	{ name: "Palantine Berm", key: "PalantineBermHex", position: { q: -5, r: 2 } },
-	{ name: "Oarbreaker Isles", key: "OarbreakerIslesHex", position: { q: -5, r: 3 } },
+	{ name: "Oarbreaker Isles", key: "OarbreakerHex", position: { q: -5, r: 3 } },
 
 	{ name: "Kuura Strand", key: "KuuraStrandHex", position: { q: -4, r: 0 } },
-	{ name: "The Gutter", key: "TheGutterHex", position: { q: -4, r: 1 } },
+	{ name: "The Gutter", key: "GutterHex", position: { q: -4, r: 1 } },
 	{ name: "Fisherman's Row", key: "FishermansRowHex", position: { q: -4, r: 2 } },
 	{ name: "Stema Landing", key: "StemaLandingHex", position: { q: -4, r: 3 } },
 
@@ -67,7 +67,7 @@ const TILES =
 
 	{ name: "Howl County", key: "HowlCountyHex", position: { q: 1, r: -3 } },
 	{ name: "Viper Pit", key: "ViperPitHex", position: { q: 1, r: -2 } },
-	{ name: "Marban Hollow", key: "MarbanHollowHex", position: { q: 1, r: -1 } },
+	{ name: "Marban Hollow", key: "MarbanHollow", position: { q: 1, r: -1 } },
 	{ name: "The Drowned Vale", key: "DrownedValeHex", position: { q: 1, r: 0 } },
 	{ name: "Shackled Chasm", key: "ShackledChasmHex", position: { q: 1, r: 1 } },
 	{ name: "Acrithia", key: "AcrithiaHex", position: { q: 1, r: 2 } },

@@ -146,6 +146,8 @@ export default class WorldMap
 			for ( let i = this.tiles.length - 1; i >= 0; --i )
 			{
 				const tempTile = this.tiles[ i ];
+				console.log( tempTile.key, tempDynamicTiles );
+
 				this.tiles[ i ].Update( tempDynamicTiles?.get( tempTile.key ) ?? null );
 			}
 		}
