@@ -48,7 +48,7 @@ export default class API
 
 	public async GetDynamicTilesAsync(): Promise<Map<string, DynamicTile> | null>
 	{
-		const tempRaw = this.GetAsync( `/api/tiles/dynamic` );
+		const tempRaw = await this.GetAsync( `/api/tiles/dynamic` );
 		return tempRaw == null ? null : new Map<string, DynamicTile>( Object.entries( tempRaw ).filter( ( [ _, value ] ) => this.IsDynamicTileOkay( value ) ) as [ string, DynamicTile ][] );
 	}
 }

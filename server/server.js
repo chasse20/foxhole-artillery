@@ -1,13 +1,22 @@
 // Required modules
 const express = require( "express" );
+const expressSession = require( "express-session" );
 const path = require( "path" );
 
 // Environment
 const PORT = process.env.PORT || 80;
+const SESSION_SECRET = process.env.SESSION_SECRET || "change-me";
+const COOKIE_SECURE = ( process.env.COOKIE_SECURE || "" ).toLowerCase() === "true";
+
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || "";
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || "";
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || "";
+const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID || "";
+const DISCORD_REQUIRED_ROLE_ID = process.env.DISCORD_REQUIRED_ROLE_ID || "";
+const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || "";
+const DISCORD_AUTH_DISABLED = ( process.env.DISCORD_AUTH_DISABLED || "" ).toLowerCase() === "true";
 
 const TILES_DYNAMIC_CACHE_DELAY = 120000; // two minutes
-
-
 let TILES_DYNAMIC_CACHE =
 {
 	fetchedAt: 0,
@@ -16,9 +25,7 @@ let TILES_DYNAMIC_CACHE =
 	etags: {}, // { [tileKey]: "etag" }
 	expiresByKey: {} // { [tileKey]: epochMs }
 };
-
 let TILES_DYNAMIC_IN_FLIGHT = null; // Promise when in progress
-
 const TILES =
 [
 	{ name: "Olavi's Wake", key: "OlavisWakeHex", position: { q: -6, r: 2 } },
@@ -179,6 +186,228 @@ APP.use(
 	}
 );
 
+// Session
+APP.set( "trust proxy", 1 );
+
+APP.use(
+	expressSession(
+		{
+			secret: SESSION_SECRET,
+			resave: false,
+			saveUninitialized: false,
+			cookie:
+			{
+				httpOnly: true,
+				sameSite: "lax",
+				secure: COOKIE_SECURE
+			}
+		}
+	)
+);
+
+// Discord Auth
+function GetDiscordAuthorizeURL( tReturnTo )
+{
+	const tempURL = new URL( "https://discord.com/oauth2/authorize" );
+
+	tempURL.searchParams.set( "client_id", DISCORD_CLIENT_ID );
+	tempURL.searchParams.set( "redirect_uri", DISCORD_REDIRECT_URI );
+	tempURL.searchParams.set( "response_type", "code" );
+	tempURL.searchParams.set( "scope", "identify guilds.members.read" );
+
+	if ( tReturnTo )
+	{
+		tempURL.searchParams.set( "state", tReturnTo );
+	}
+
+	return tempURL.toString();
+}
+
+async function GetDiscordCodeForTokenAsync( tCode )
+{
+	const tempBody = new URLSearchParams();
+
+	tempBody.set( "client_id", DISCORD_CLIENT_ID );
+	tempBody.set( "client_secret", DISCORD_CLIENT_SECRET );
+	tempBody.set( "grant_type", "authorization_code" );
+	tempBody.set( "code", tCode );
+	tempBody.set( "redirect_uri", DISCORD_REDIRECT_URI );
+
+	const tempResponse = await fetch(
+		"https://discord.com/api/oauth2/token",
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/x-www-form-urlencoded" },
+			body: tempBody
+		}
+	);
+
+	if ( !tempResponse.ok )
+	{
+		throw new Error( `Discord token exchange failed: ${tempResponse.status}` );
+	}
+
+	return tempResponse.json();
+}
+
+async function GetDiscordUserAsync( tAccessToken )
+{
+	const tempResponse = await fetch(
+		"https://discord.com/api/users/@me",
+		{
+			headers:
+			{
+				"Authorization": `Bearer ${tAccessToken}`
+			}
+		}
+	);
+
+	if ( !tempResponse.ok )
+	{
+		throw new Error( `Discord user fetch failed: ${tempResponse.status}` );
+	}
+
+	return tempResponse.json();
+}
+
+async function GetDiscordGuildMemberAsync( tUserId )
+{
+	const tempResponse = await fetch(
+		`https://discord.com/api/guilds/${encodeURIComponent( DISCORD_GUILD_ID )}/members/${encodeURIComponent( tUserId )}`,
+		{
+			headers:
+			{
+				"Authorization": `Bot ${DISCORD_BOT_TOKEN}`
+			}
+		}
+	);
+
+	if ( tempResponse.status === 404 )
+	{
+		return null;
+	}
+
+	if ( !tempResponse.ok )
+	{
+		throw new Error( `Discord guild member fetch failed: ${tempResponse.status}` );
+	}
+
+	return tempResponse.json();
+}
+
+function GetIsRequiredRole( tMember )
+{
+	if ( !tMember || !Array.isArray( tMember.roles ) )
+	{
+		return false;
+	}
+
+	return tMember.roles.includes( DISCORD_REQUIRED_ROLE_ID );
+}
+
+async function UseDiscordRoleCheckAsync( tRequest, tResponse, tNext )
+{
+	try
+	{
+		// Allow auth endpoints through
+		if ( tRequest.path.startsWith( "/auth/" ) || DISCORD_AUTH_DISABLED )
+		{
+			return tNext();
+		}
+
+		const tempSession = tRequest.session || {};
+		const tempUserId = tempSession.discordUserId || null;
+
+		if ( !tempUserId )
+		{
+			const tempReturnTo = tRequest.originalUrl || "/";
+			return tResponse.redirect( GetDiscordAuthorizeURL( tempReturnTo ) );
+		}
+
+		// Cache role check
+		const tempNow = Date.now();
+		const tempCachedUntil = tempSession.discordRoleCacheUntil || 0;
+
+		if ( tempSession.discordHasRole && tempNow < tempCachedUntil )
+		{
+			return tNext();
+		}
+
+		const tempMember = await GetDiscordGuildMemberAsync( tempUserId );
+		const tempHasRole = GetIsRequiredRole( tempMember );
+
+		tRequest.session.discordHasRole = tempHasRole;
+		tRequest.session.discordRoleCacheUntil = tempNow + 60000;
+
+		if ( !tempHasRole )
+		{
+			return tResponse.status( 403 ).send( "Forbidden" );
+		}
+
+		return tNext();
+	}
+	catch ( tError )
+	{
+		console.error( "ProcessDiscordRoleCheckAsync error:", tError );
+		return tResponse.status( 500 ).send( "Internal server error" );
+	}
+}
+
+APP.get(
+	"/auth/login",
+	( tRequest, tResponse ) =>
+	{
+		const tempReturnTo = tRequest.query && tRequest.query.returnTo ? String( tRequest.query.returnTo ) : "/";
+		return tResponse.redirect( GetDiscordAuthorizeURL( tempReturnTo ) );
+	}
+);
+
+APP.get(
+	"/auth/callback",
+	async ( tRequest, tResponse ) =>
+	{
+		try
+		{
+			const tempCode = tRequest.query && tRequest.query.code ? String( tRequest.query.code ) : null;
+			const tempState = tRequest.query && tRequest.query.state ? String( tRequest.query.state ) : "/";
+
+			if ( !tempCode )
+			{
+				return tResponse.status( 400 ).send( "Missing code" );
+			}
+
+			const tempToken = await GetDiscordCodeForTokenAsync( tempCode );
+			const tempUser = await GetDiscordUserAsync( tempToken.access_token );
+
+			tRequest.session.discordUserId = tempUser.id;
+			tRequest.session.discordUsername = tempUser.username;
+			tRequest.session.discordHasRole = false;
+			tRequest.session.discordRoleCacheUntil = 0;
+
+			return tResponse.redirect( tempState || "/" );
+		}
+		catch ( tError )
+		{
+			console.error( "Auth callback error:", tError );
+			return tResponse.status( 500 ).send( "Auth error" );
+		}
+	}
+);
+
+APP.get(
+	"/auth/logout",
+	( tRequest, tResponse ) =>
+	{
+		if ( tRequest.session )
+		{
+			tRequest.session.destroy( () => tResponse.redirect( "/" ) );
+			return;
+		}
+
+		return tResponse.redirect( "/" );
+	}
+);
+
 // API
 function GetUpstreamExpiresAt( tHeaders, tNowMs )
 {
@@ -217,6 +446,8 @@ function GetUpstreamExpiresAt( tHeaders, tNowMs )
 
 	return tempExpiresAt;
 }
+
+APP.use( UseDiscordRoleCheckAsync );
 
 APP.get(
 	"/api/tiles/dynamic",

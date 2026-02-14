@@ -9,6 +9,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: 8080
+      DISCORD_AUTH_DISABLED: "true"
     volumes:
       - ./server:/app/server
       - /app/server/node_modules
