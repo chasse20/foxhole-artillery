@@ -12,18 +12,18 @@ This is a small, personal project (2025) I did for a few of my friends in a vide
 - Provides optional Discord OAuth and role-based access control for hosted deployments
 - Includes Docker configurations for development and production deployment
 
+![Interface](docs/demo1.png)
+
 ## Stack
 
-- React 19
+- React
 - TypeScript
 - MobX
 - Vite
 - Tailwind CSS
 - Node.js
 - Express
-- Express Session
-- Foxhole War API integration
-- Discord OAuth / guild role validation
+- Discord OAuth
 - Docker
 
 ## Discord access control
