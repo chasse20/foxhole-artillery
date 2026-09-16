@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-tempUser="chasse20"
-#tempUser="registry.example.com"
-tempImage="foxhole-artillery:latest"
+registry="${DOCKER_REGISTRY:-chasse20}"
+image="${IMAGE_NAME:-foxhole-artillery}"
+tag="${IMAGE_TAG:-latest}"
+local_image="${image}:${tag}"
+remote_image="${registry}/${image}:${tag}"
 
-docker build -f Dockerfile -t "$tempImage" .
-docker tag "$tempImage" "$tempUser/$tempImage"
+docker build -f Dockerfile -t "$local_image" .
+docker tag "$local_image" "$remote_image"
 docker login
-docker push "$tempUser/$tempImage"
+docker push "$remote_image"

@@ -146,8 +146,6 @@ export default class App
 
 	public OnMapIconSelect( tIcon: Icon )
 	{
-		console.log( tIcon.worldPosition );
-
 		for ( let i = this.fireGroups.length - 1; i >= 0; --i )
 		{
 			this.fireGroups[ i ].OnMapIconSelect( tIcon );	

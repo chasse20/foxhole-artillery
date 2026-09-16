@@ -2,11 +2,18 @@
 const express = require( "express" );
 const expressSession = require( "express-session" );
 const path = require( "path" );
+const crypto = require( "crypto" );
 
 // Environment
 const PORT = process.env.PORT || 80;
-const SESSION_SECRET = process.env.SESSION_SECRET || "change-me";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const SESSION_SECRET = process.env.SESSION_SECRET || ( IS_PRODUCTION ? "" : "local-development-only" );
 const COOKIE_SECURE = ( process.env.COOKIE_SECURE || "" ).toLowerCase() === "true";
+
+if ( !SESSION_SECRET )
+{
+	throw new Error( "SESSION_SECRET must be configured in production." );
+}
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || "";
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || "";
@@ -206,7 +213,17 @@ APP.use(
 );
 
 // Discord Auth
-function GetDiscordAuthorizeURL( tReturnTo )
+function GetSafeReturnTo( tValue )
+{
+	if ( typeof tValue === "string" && tValue.startsWith( "/" ) && !tValue.startsWith( "//" ) )
+	{
+		return tValue;
+	}
+
+	return "/";
+}
+
+function GetDiscordAuthorizeURL( tState )
 {
 	const tempURL = new URL( "https://discord.com/oauth2/authorize" );
 
@@ -214,13 +231,19 @@ function GetDiscordAuthorizeURL( tReturnTo )
 	tempURL.searchParams.set( "redirect_uri", DISCORD_REDIRECT_URI );
 	tempURL.searchParams.set( "response_type", "code" );
 	tempURL.searchParams.set( "scope", "identify guilds.members.read" );
-
-	if ( tReturnTo )
-	{
-		tempURL.searchParams.set( "state", tReturnTo );
-	}
+	tempURL.searchParams.set( "state", tState );
 
 	return tempURL.toString();
+}
+
+function BeginDiscordLogin( tRequest, tResponse, tReturnTo )
+{
+	const tempState = crypto.randomBytes( 24 ).toString( "hex" );
+
+	tRequest.session.discordOAuthState = tempState;
+	tRequest.session.discordReturnTo = GetSafeReturnTo( tReturnTo );
+
+	return tResponse.redirect( GetDiscordAuthorizeURL( tempState ) );
 }
 
 async function GetDiscordCodeForTokenAsync( tCode )
@@ -320,8 +343,7 @@ async function UseDiscordRoleCheckAsync( tRequest, tResponse, tNext )
 
 		if ( !tempUserId )
 		{
-			const tempReturnTo = tRequest.originalUrl || "/";
-			return tResponse.redirect( GetDiscordAuthorizeURL( tempReturnTo ) );
+			return BeginDiscordLogin( tRequest, tResponse, tRequest.originalUrl || "/" );
 		}
 
 		// Cache role check
@@ -358,7 +380,7 @@ APP.get(
 	( tRequest, tResponse ) =>
 	{
 		const tempReturnTo = tRequest.query && tRequest.query.returnTo ? String( tRequest.query.returnTo ) : "/";
-		return tResponse.redirect( GetDiscordAuthorizeURL( tempReturnTo ) );
+		return BeginDiscordLogin( tRequest, tResponse, tempReturnTo );
 	}
 );
 
@@ -369,12 +391,22 @@ APP.get(
 		try
 		{
 			const tempCode = tRequest.query && tRequest.query.code ? String( tRequest.query.code ) : null;
-			const tempState = tRequest.query && tRequest.query.state ? String( tRequest.query.state ) : "/";
+			const tempState = tRequest.query && tRequest.query.state ? String( tRequest.query.state ) : null;
+			const tempExpectedState = tRequest.session.discordOAuthState || null;
 
 			if ( !tempCode )
 			{
 				return tResponse.status( 400 ).send( "Missing code" );
 			}
+
+			if ( !tempState || !tempExpectedState || tempState !== tempExpectedState )
+			{
+				return tResponse.status( 400 ).send( "Invalid OAuth state" );
+			}
+
+			const tempReturnTo = GetSafeReturnTo( tRequest.session.discordReturnTo || "/" );
+			delete tRequest.session.discordOAuthState;
+			delete tRequest.session.discordReturnTo;
 
 			const tempToken = await GetDiscordCodeForTokenAsync( tempCode );
 			const tempUser = await GetDiscordUserAsync( tempToken.access_token );
@@ -384,7 +416,7 @@ APP.get(
 			tRequest.session.discordHasRole = false;
 			tRequest.session.discordRoleCacheUntil = 0;
 
-			return tResponse.redirect( tempState || "/" );
+			return tResponse.redirect( tempReturnTo );
 		}
 		catch ( tError )
 		{
